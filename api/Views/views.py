@@ -48,7 +48,7 @@ class RutinaEjercicioViewSet(viewsets.ModelViewSet):
 
 class ResenaViewSet(viewsets.ModelViewSet):
     queryset = Resena.objects.all()
-    serializer_class = ReseñaSerializer
+    serializer_class = ResenaSerializer
 
 class retroalimentacionViewSet(viewsets.ModelViewSet):
     queryset = Retroalimentacion.objects.all()

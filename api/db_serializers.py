@@ -56,7 +56,7 @@ class RutinaEjercicioSerializer(serializers.ModelSerializer):
         model = CrearRutina
         fields = '__all__'
 
-class ReseñaSerializer(serializers.ModelSerializer):
+class ResenaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resena
         fields = '__all__'  
