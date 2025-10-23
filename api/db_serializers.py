@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from api.models import *
-
+from django.contrib.auth import authenticate
+ 
 class RolUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = RolUsuario
@@ -85,3 +86,31 @@ class ContenidoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContenidoEducativo
         fields = '__all__'
+
+class RegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Usuario
+        fields = ['id', 'username', 'email', 'password', 'edad', 'rol']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = Usuario.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data['email'],
+            password=validated_data['password'],
+            edad=validated_data.get('edad', None),
+            rol=validated_data.get('rol', 'usuario')
+        )
+        return user
+
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        user = authenticate(**data)
+        if user and user.is_active:
+            return user
+        raise serializers.ValidationError("Credenciales incorrectas")
+   
