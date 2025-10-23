@@ -110,6 +110,7 @@ class Ejercicio(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     nivel_esfuerzo = models.SmallIntegerField()
     sug_semanas = models.SmallIntegerField()
+    categoria = models.CharField(max_length=50, null=True)
 
     class Meta:
         db_table = 'ejercicios'
