@@ -1,4 +1,8 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status, viewsets
+
 from api.models import *
 from api.db_serializers import *
 # nuevas 
@@ -44,6 +48,62 @@ class AnimacionViewSet(viewsets.ModelViewSet):
 class EjercicioViewSet(viewsets.ModelViewSet):
     queryset = Ejercicio.objects.all()
     serializer_class = EjercicioSerializer
+
+    #obtener los ejercicios de una categoria 
+    @action(detail=False, methods=['get'], url_path='categoria')
+    def by_categoria(self, request):
+        categoria = request.query_params.get('categoria', None)
+
+        if not categoria:
+            return Response({"error": "Debe especificar una categoría como parámetro (?categoria=Cardio)"}, status=400)
+
+        ejercicios = Ejercicio.objects.filter(categoria__iexact=categoria)
+        serializer = self.get_serializer(ejercicios, many=True)
+        return Response(serializer.data)
+    
+    #Actualizar un ejercicio por su id
+    @action(detail=False, methods=['put'], url_path='actualizar_ejercicio')
+    def actualizar_ejercicio(self, request):
+        ejercicio_id = request.data.get('id_ejercicio')
+        #obtener el id del body
+        if not ejercicio_id:
+            return Response({'error': 'Debes enviar el campo "id" en el body.'},
+                            status=status.HTTP_400_BAD_REQUEST) 
+        try:
+            #busca el ejercicio por su id
+            ejercicio_actulizar = Ejercicio.objects.get(id=ejercicio_id)
+        except Ejercicio.DoesNotExist:
+            return Response({'error': 'Ejercicio no encontrado.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        #crear el serializer con los datos nuevos
+        serializer = self.get_serializer(ejercicio_actulizar, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    #Elimina un ejercicio por su id
+    @action(detail=False, methods=['delete'], url_path='eliminar_ejercicio')
+    def eliminar_ejercicio(self, request):
+        ejercicio_id = request.data.get('id_ejercicio')
+        #obtener el id del body
+        if not ejercicio_id:
+            return Response({'error': 'Debes enviar el campo "id" en el body.'},
+                            status=status.HTTP_400_BAD_REQUEST) 
+        try:
+            #busca el ejercicio por su id
+            ejercicio_eliminar= Ejercicio.objects.get(id=ejercicio_id)
+        except Ejercicio.DoesNotExist:
+            return Response({'error': 'Ejercicio no encontrado.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        #elimiinar el ejercicio
+        ejercicio_eliminar.delete()
+
+        return Response({'mensaje': f'Ejercicio con id {ejercicio_id} eliminado correctamente.'},
+                    status=status.HTTP_200_OK)
+    
+
 
 class RutinaViewSet(viewsets.ModelViewSet):
     queryset = Rutina.objects.all()
