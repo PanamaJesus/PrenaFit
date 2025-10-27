@@ -117,6 +117,49 @@ class ResenaViewSet(viewsets.ModelViewSet):
     queryset = Resena.objects.all()
     serializer_class = ResenaSerializer
 
+#Actualizar un comentario por su id
+    @action(detail=False, methods=['put'], url_path='actualizar_comentario')
+    def actualizar_comentario(self, request):
+        id_comentario = request.data.get('id_comentario')
+        #obtener el id del body
+        if not id_comentario:
+            return Response({'error': 'Debes enviar el campo "id" en el body.'},
+                            status=status.HTTP_400_BAD_REQUEST) 
+        try:
+            #busca el comentario por su id
+            comentario_actulizar = Resena.objects.get(id=id_comentario)
+        except Ejercicio.DoesNotExist:
+            return Response({'error': 'Comentario no encontrado.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        #crear el serializer con los datos nuevos
+        serializer = self.get_serializer(comentario_actulizar, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    #Elimina un ejercicio por su id
+    @action(detail=False, methods=['delete'], url_path='eliminar_comentario')
+    def eliminar_comentario(self, request):
+        id_comentario = request.data.get('id_comentario')
+        #obtener el id del body
+        if not id_comentario:
+            return Response({'error': 'Debes enviar el campo "id" en el body.'},
+                            status=status.HTTP_400_BAD_REQUEST) 
+        try:
+            #busca el comentario por su id
+            comentario_eliminar= Resena.objects.get(id=id_comentario)
+        except Resena.DoesNotExist:
+            return Response({'error': 'Comentario no encontrado.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        #elimiinar el ejercicio
+        comentario_eliminar.delete()
+
+        return Response({'mensaje': f'Comentario con id {id_comentario} eliminado correctamente.'},
+                    status=status.HTTP_200_OK)
+
+
 class retroalimentacionViewSet(viewsets.ModelViewSet):
     queryset = Retroalimentacion.objects.all()
     serializer_class = retroalimentacionSerializer
