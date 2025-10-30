@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-_1#re=#!_4zc$bn7*-3#8yv$+g0m)8h9opuus9ncbnd_nz5-ae
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    '127.0.0.1','localhost'
+    '127.0.0.1','localhost','localhost:5173', '10.0.2.2'
 ]
 
 
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'api'
 ]
 
@@ -51,10 +52,20 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'prenfit.urls'
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",   # React en modo desarrollo
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
+
 
 TEMPLATES = [
     {

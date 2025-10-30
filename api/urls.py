@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from api.Views.views import *  
+from api.Views.views import *
 
 router = DefaultRouter()
 router.register(r'rolusuario', RolUsuarioViewSet)
@@ -20,8 +20,7 @@ router.register(r'contactoemerg', contactoViewSet)
 router.register(r'historial', historialViewSet)
 router.register(r'tipotema', tipotemaViewSet)
 router.register(r'contenido', contenidoViewSet)
-
-
+router.register(r'rutinasguardados', rutinasguardadosViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

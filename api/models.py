@@ -19,6 +19,9 @@ class Usuario(models.Model):
     correo = models.EmailField(max_length=254, unique=True)
     semana_embarazo = models.SmallIntegerField(null=True, blank=True)
     rol = models.ForeignKey(RolUsuario, on_delete=models.SET_NULL, null=True)
+    codigo_vinculacion = models.CharField(max_length=10, null=True, blank=True)
+    estado = models.BooleanField(default=False)
+
 
     class Meta:
         db_table = 'usuario'
@@ -225,3 +228,14 @@ class ContenidoEducativo(models.Model):
 
     def _str_(self):
         return self.titulo
+
+class RutinasGuardados(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    rutina = models.ForeignKey(Rutina, on_delete=models.CASCADE)
+    fecha_guardado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'rutina_guardados'
+
+    def __str__(self):
+        return f"{self.usuario} guardó {self.ejercicio}"

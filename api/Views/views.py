@@ -179,7 +179,11 @@ class tipotemaViewSet(viewsets.ModelViewSet):
 class contenidoViewSet(viewsets.ModelViewSet):
     queryset = ContenidoEducativo.objects.all()
     serializer_class = ContenidoSerializer
-    
+
+class rutinasguardadosViewSet(viewsets.ModelViewSet):
+    queryset = RutinasGuardados.objects.all()
+    serializer_class = RutinasGuardadosSerializer
+
 class RegisterView(APIView):
     def post(self, request):
         data = request.data

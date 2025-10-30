@@ -87,6 +87,11 @@ class ContenidoSerializer(serializers.ModelSerializer):
         model = ContenidoEducativo
         fields = '__all__'
 
+class RutinasGuardadosSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RutinasGuardados
+        fields = '__all__'
+
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
