@@ -43,9 +43,13 @@ class AnimacionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EjercicioSerializer(serializers.ModelSerializer):
+    contador_resenas = serializers.SerializerMethodField()
     class Meta:
         model = Ejercicio
         fields = '__all__'
+
+    def get_contador_resenas(self, obj):
+        return obj.resena_set.count()
     
 class RutinaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -91,6 +95,33 @@ class RutinasGuardadosSerializer(serializers.ModelSerializer):
     class Meta:
         model = RutinasGuardados
         fields = '__all__'
+
+class ResenaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.CharField(source='usuario.nombre', read_only=True)
+    ejercicio_id = serializers.PrimaryKeyRelatedField(
+        queryset=Ejercicio.objects.all(), source='ejercicio'
+    )
+
+    class Meta:
+        model = Resena
+        fields = ['id', 'usuario', 'usuario_nombre', 'fecha', 'descripcion', 'ejercicio_id']
+
+
+
+class EjercicioDetalleSerializer(serializers.ModelSerializer):
+    resenas = ResenaSerializer(many=True, read_only=True, source='resena_set')
+
+    class Meta:
+        model = Ejercicio
+        fields = [
+            'id',
+            'nombre',
+            'descripcion',
+            'nivel_esfuerzo',
+            'sug_semanas',
+            'categoria',
+            'resenas'
+        ]
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:

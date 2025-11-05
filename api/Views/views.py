@@ -103,6 +103,25 @@ class EjercicioViewSet(viewsets.ModelViewSet):
         return Response({'mensaje': f'Ejercicio con id {ejercicio_id} eliminado correctamente.'},
                     status=status.HTTP_200_OK)
     
+    #Vista detallada de un ejercicio con comentarios
+    @action(detail=False, methods=['get'], url_path='vista_detallada_comentarios')
+    def vista_detallada_comentarios(self, request):
+        ejercicio_id = request.data.get('ejercicio_id')
+
+        if not ejercicio_id:
+            return Response({"error": "Debe especificar un ejercicio_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            ejercicio = Ejercicio.objects.get(id=ejercicio_id)
+        except Ejercicio.DoesNotExist:
+            return Response({"error": "Ejercicio no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        ejercicio_serializer = EjercicioDetalleSerializer(ejercicio)
+
+        return Response({
+            "ejercicio": ejercicio_serializer.data,
+        }, status=status.HTTP_200_OK)
+    
 
 
 class RutinaViewSet(viewsets.ModelViewSet):
@@ -117,7 +136,19 @@ class ResenaViewSet(viewsets.ModelViewSet):
     queryset = Resena.objects.all()
     serializer_class = ResenaSerializer
 
-#Actualizar un comentario por su id
+    #Buscar comentarios de un ejercicio por su id
+    @action(detail=False, methods=['post'], url_path='comentarios_ejercicio')
+    def comentarios_ejercicio(self, request):
+        ejercicio_id = request.data.get('ejercicio_id', None)
+
+        if not ejercicio_id:
+            return Response({"error": "Debe especificar un ejercicio_id como parámetro"}, status=400)
+
+        comentarios = Resena.objects.filter(ejercicio__id=ejercicio_id)
+        serializer = self.get_serializer(comentarios, many=True)
+        return Response(serializer.data)
+
+    #Actualizar un comentario por su id
     @action(detail=False, methods=['put'], url_path='actualizar_comentario')
     def actualizar_comentario(self, request):
         id_comentario = request.data.get('id_comentario')
