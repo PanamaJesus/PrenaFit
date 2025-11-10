@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from api.models import *
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import check_password
+
  
 class RolUsuarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -126,27 +128,26 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'username', 'email', 'password', 'edad', 'rol']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ['id', 'nombre', 'ap_pat', 'ap_mat', 'correo', 'contrasena', 'rol']
+        extra_kwargs = {'contrasena': {'write_only': True}}
 
     def create(self, validated_data):
-        user = Usuario.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-            edad=validated_data.get('edad', None),
-            rol=validated_data.get('rol', 'usuario')
-        )
-        return user
+        validated_data['contrasena'] = make_password(validated_data['contrasena'])
+        return Usuario.objects.create(**validated_data)
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    correo = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(**data)
-        if user and user.is_active:
-            return user
-        raise serializers.ValidationError("Credenciales incorrectas")
+        try:
+            user = Usuario.objects.get(correo=data['correo'])
+        except Usuario.DoesNotExist:
+            raise serializers.ValidationError("Usuario no encontrado")
+
+        if not check_password(data['contrasena'], user.password):
+            raise serializers.ValidationError("Contraseña incorrecta")
+
+        return user
    

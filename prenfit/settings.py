@@ -57,6 +57,18 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),   # el token expira en 1 hora
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),   # el refresh dura 7 días
+}
+
 ROOT_URLCONF = 'prenfit.urls'
 
 CORS_ALLOWED_ORIGINS = [

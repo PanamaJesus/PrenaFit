@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from django.contrib.auth.hashers import make_password
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class RolUsuarioViewSet(viewsets.ModelViewSet):
     queryset = RolUsuario.objects.all()
@@ -223,35 +224,78 @@ class RegisterView(APIView):
         if Usuario.objects.filter(correo=data.get('correo')).exists():
             return Response({'error': 'Este correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Crear el usuario
-        usuario = Usuario.objects.create(
+        # Crear el objeto sin guardar aún
+        usuario = Usuario(
             nombre=data.get('nombre'),
             ap_pat=data.get('ap_pat'),
             ap_mat=data.get('ap_mat'),
             correo=data.get('correo'),
             semana_embarazo=data.get('semana_embarazo'),
-            rol_id=data.get('rol'),
+            rol_id=data.get('rol')
         )
 
-        # Si tu modelo tuviera campo "password", se encripta así:
-        # usuario.password = make_password(data.get('password'))
-        # usuario.save()
+        # 🔥 Hashear la contraseña antes de guardar
+        usuario.set_password(data.get('contrasena'))
+
+        # 🔥 Guardar el usuario (ahora sí)
+        usuario.save()
+
+        print(">>> Usuario guardado con contraseña hasheada:", usuario.contrasena)
 
         serializer = UsuarioSerializer(usuario)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+# class LoginView(APIView):
+#     def post(self, request):
+#         correo = request.data.get('correo')
+
+#         try:
+#             usuario = Usuario.objects.get(correo=correo)
+#             serializer = UsuarioSerializer(usuario)
+#             return Response({
+#                 'message': 'Inicio de sesión exitoso',
+#                 'usuario': serializer.data
+#             }, status=status.HTTP_200_OK)
+
+#         except Usuario.DoesNotExist:
+#             return Response({'error': 'Correo no registrado'}, status=status.HTTP_404_NOT_FOUND)
+
 class LoginView(APIView):
     def post(self, request):
         correo = request.data.get('correo')
+        contrasena = request.data.get('contrasena')
 
         try:
             usuario = Usuario.objects.get(correo=correo)
-            serializer = UsuarioSerializer(usuario)
-            return Response({
-                'message': 'Inicio de sesión exitoso',
-                'usuario': serializer.data
-            }, status=status.HTTP_200_OK)
-
         except Usuario.DoesNotExist:
-            return Response({'error': 'Correo no registrado'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Correo no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not check_password(contrasena, usuario.contrasena):
+            return Response({'error': 'Contraseña incorrecta'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not usuario.estado:
+            return Response({'error': 'El usuario no está activo'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Generar tokens
+        refresh = RefreshToken.for_user(usuario)
+
+        # Serializar datos del usuario
+        user_data = {
+            'id': usuario.id,
+            'nombre_completo': f"{usuario.nombre} {usuario.ap_pat} {usuario.ap_mat}",
+            'nombre': usuario.nombre,
+            'ap_pat': usuario.ap_pat,
+            'ap_mat': usuario.ap_mat,
+            'correo': usuario.correo,
+            'rol': usuario.rol_id,
+            'semana_embarazo': usuario.semana_embarazo,
+            # Agrega otros campos que desees incluir
+        }
+
+        return Response({
+            'message': 'Inicio de sesión exitoso',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'usuario': user_data
+        }, status=status.HTTP_200_OK)
 

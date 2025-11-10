@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.hashers import make_password
 
 
 class RolUsuario(models.Model):
@@ -21,14 +22,19 @@ class Usuario(models.Model):
     rol = models.ForeignKey(RolUsuario, on_delete=models.SET_NULL, null=True)
     codigo_vinculacion = models.CharField(max_length=10, null=True, blank=True)
     estado = models.BooleanField(default=False)
-
+    contrasena = models.CharField(max_length=128, null=True)
 
     class Meta:
         db_table = 'usuario'
 
-    def _str_(self):
+    def __str__(self):
         return f"{self.nombre} {self.ap_pat} {self.ap_mat}"
 
+    def set_password(self, raw_password):
+        print("Hasheando contraseña...")
+        """Hashea y guarda la contraseña."""
+        self.contrasena = make_password(raw_password)
+        print("Contraseña hasheada:", self.contrasena)
 
 class Rangos(models.Model):
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
