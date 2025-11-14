@@ -298,4 +298,25 @@ class LoginView(APIView):
             'refresh': str(refresh),
             'usuario': user_data
         }, status=status.HTTP_200_OK)
+    
+class RutinasGuardadasUsuarioView(APIView):
 
+    def get(self, request, usuario_id=None):
+        if usuario_id:
+            registros = RutinasGuardados.objects.filter(usuario_id=usuario_id)
+        else:
+            registros = RutinasGuardados.objects.all()
+
+        serializer = RutinasGuardadasUsuarioSerializer(registros, many=True)
+        return Response(serializer.data)
+    
+class RutinaDetalleAPI(APIView):
+    def get(self, request, rutina_id):
+
+        ejercicios = CrearRutina.objects.filter(
+            rutina_id=rutina_id
+        ).select_related("ejercicio", "rutina")
+
+        serializer = EjercicioDetalleSerializer(ejercicios, many=True)
+
+        return Response(serializer.data)

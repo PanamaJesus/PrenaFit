@@ -150,4 +150,37 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Contraseña incorrecta")
 
         return user
-   
+
+
+class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer): 
+    NombreRutina = serializers.CharField(source='rutina.nombre', read_only=True)
+    Descripcion = serializers.CharField(source='rutina.descripcion', read_only=True)
+    SugSemanas = serializers.IntegerField(source='rutina.sug_semanas_em', read_only=True)
+    RutinaId = serializers.IntegerField(source='rutina.id', read_only=True)
+    Usuario = serializers.IntegerField(source='usuario.id', read_only=True)
+
+    class Meta:
+        model = RutinasGuardados
+        fields = [
+            'id',
+            'fecha_guardado',
+            'RutinaId',
+            'Usuario',
+            'NombreRutina',
+            'Descripcion',
+            'SugSemanas'
+        ]
+
+class EjercicioDetalleSerializer(serializers.Serializer):
+    rutinaId = serializers.IntegerField(source="rutina.id")
+    ejercicio = serializers.CharField(source="ejercicio.nombre")
+    descripcion = serializers.CharField(source="ejercicio.descripcion")
+    nivelEsfuerzo = serializers.IntegerField(source="ejercicio.nivel_esfuerzo")
+    series = serializers.IntegerField()
+    repeticiones = serializers.IntegerField()
+    tiempoAprox = serializers.IntegerField(source="tiempo_seg")
+    esfuerzo = serializers.SerializerMethodField()
+
+    def get_esfuerzo(self, obj):
+        niveles = {1: "Bajo", 2: "Medio", 3: "Alto"}
+        return niveles.get(obj.ejercicio.nivel_esfuerzo, "Desconocido")
