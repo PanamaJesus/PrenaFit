@@ -29,5 +29,6 @@ urlpatterns = [
    path('rutinas_guardadas/', RutinasGuardadasUsuarioView.as_view()),
     path('rutinas_guardadas/<int:usuario_id>/', RutinasGuardadasUsuarioView.as_view()),
     path("rutina_detalle/<int:rutina_id>/", RutinaDetalleAPI.as_view()),
+    path("historial_rutina/", CrearHistorialRutinaAPI.as_view(), name="crear_historial"),
 
 ]

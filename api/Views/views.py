@@ -298,7 +298,7 @@ class LoginView(APIView):
             'refresh': str(refresh),
             'usuario': user_data
         }, status=status.HTTP_200_OK)
-    
+###################################################################################################
 class RutinasGuardadasUsuarioView(APIView):
 
     def get(self, request, usuario_id=None):
@@ -320,3 +320,17 @@ class RutinaDetalleAPI(APIView):
         serializer = EjercicioDetalleSerializer(ejercicios, many=True)
 
         return Response(serializer.data)
+    
+class CrearHistorialRutinaAPI(APIView):
+    def post(self, request):
+        serializer = HistorialRutinaSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+
+#################################################################################################################

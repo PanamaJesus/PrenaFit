@@ -151,7 +151,7 @@ class LoginSerializer(serializers.Serializer):
 
         return user
 
-
+##############################################################################################################
 class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer): 
     NombreRutina = serializers.CharField(source='rutina.nombre', read_only=True)
     Descripcion = serializers.CharField(source='rutina.descripcion', read_only=True)
@@ -184,3 +184,9 @@ class EjercicioDetalleSerializer(serializers.Serializer):
     def get_esfuerzo(self, obj):
         niveles = {1: "Bajo", 2: "Medio", 3: "Alto"}
         return niveles.get(obj.ejercicio.nivel_esfuerzo, "Desconocido")
+    
+class HistorialRutinaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistorialRutina
+        fields = '__all__'
+#########################################################################################
