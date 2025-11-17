@@ -298,7 +298,7 @@ class LoginView(APIView):
             'refresh': str(refresh),
             'usuario': user_data
         }, status=status.HTTP_200_OK)
-###################################################################################################
+
 class RutinasGuardadasUsuarioView(APIView):
 
     def get(self, request, usuario_id=None):
