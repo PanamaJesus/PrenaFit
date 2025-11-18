@@ -315,11 +315,12 @@ class RutinaDetalleAPI(APIView):
 
         ejercicios = CrearRutina.objects.filter(
             rutina_id=rutina_id
-        ).select_related("ejercicio", "rutina")
+        ).select_related("ejercicio", "rutina", "ejercicio__animacion")
 
         serializer = EjercicioDetalleSerializer(ejercicios, many=True)
 
         return Response(serializer.data)
+
     
 class CrearHistorialRutinaAPI(APIView):
     def post(self, request):

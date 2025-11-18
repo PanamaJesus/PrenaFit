@@ -100,16 +100,18 @@ class Alerta(models.Model):
         return f"Alerta {self.id} - {self.tipo}"
 
 
+
 class Animacion(models.Model):
     nombre_ejercicio = models.CharField(max_length=50)
-    url_anima = models.TextField()
+    imagen = models.ImageField(upload_to='animaciones/', null=True, blank=True)
     descripcion = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'animacion'
 
-    def _str_(self):
+    def __str__(self):
         return self.nombre_ejercicio
+
 
 
 class Ejercicio(models.Model):

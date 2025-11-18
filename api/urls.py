@@ -1,6 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from django.conf.urls.static import static
 from api.Views.views import *
+from django.conf import settings
 
 router = DefaultRouter()
 router.register(r'rolusuario', RolUsuarioViewSet)
@@ -26,9 +28,9 @@ urlpatterns = [
     path('', include(router.urls)), 
     path('register/', RegisterView.as_view(), name='register'), 
     path('login/', LoginView.as_view(), name='login'), 
-   path('rutinas_guardadas/', RutinasGuardadasUsuarioView.as_view()),
+    path('rutinas_guardadas/', RutinasGuardadasUsuarioView.as_view()),
     path('rutinas_guardadas/<int:usuario_id>/', RutinasGuardadasUsuarioView.as_view()),
     path("rutina_detalle/<int:rutina_id>/", RutinaDetalleAPI.as_view()),
     path("historial_rutina/", CrearHistorialRutinaAPI.as_view(), name="crear_historial"),
-
 ]
+
