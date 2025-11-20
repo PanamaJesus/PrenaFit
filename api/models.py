@@ -108,8 +108,9 @@ class Imagen(models.Model):
     class Meta:
         db_table = 'imagenes'
 
-    def _str_(self):
+    def __str__(self):
         return self.nombre_ejercicio
+
 
 
 class Ejercicio(models.Model):

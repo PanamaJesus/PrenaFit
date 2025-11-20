@@ -192,19 +192,35 @@ class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer):
             'SugSemanas'
         ]
 
-class EjercicioDetalleSerializer(serializers.Serializer):
-    rutinaId = serializers.IntegerField(source="rutina.id")
-    ejercicio = serializers.CharField(source="ejercicio.nombre")
-    descripcion = serializers.CharField(source="ejercicio.descripcion")
-    nivelEsfuerzo = serializers.IntegerField(source="ejercicio.nivel_esfuerzo")
-    series = serializers.IntegerField()
-    repeticiones = serializers.IntegerField()
-    tiempoAprox = serializers.IntegerField(source="tiempo_seg")
-    esfuerzo = serializers.SerializerMethodField()
+class EjercicioDetalleSerializer(serializers.ModelSerializer):
+    Ejercicio = serializers.CharField(source='ejercicio.nombre', read_only=True)
+    Descripcion = serializers.CharField(source='ejercicio.descripcion', read_only=True)
+    NivelEsfuerzo = serializers.IntegerField(source='ejercicio.nivel_esfuerzo', read_only=True)
+    Series = serializers.IntegerField(source='series', read_only=True)
+    Repeticiones = serializers.IntegerField(source='repeticiones', read_only=True)
+    TiempoAprox = serializers.IntegerField(source='tiempo_seg', read_only=True)
+    AnimacionId = serializers.IntegerField(source='ejercicio.animacion_id', read_only=True)
 
-    def get_esfuerzo(self, obj):
-        niveles = {1: "Bajo", 2: "Medio", 3: "Alto"}
-        return niveles.get(obj.ejercicio.nivel_esfuerzo, "Desconocido")
+    Url = serializers.SerializerMethodField()
+
+    def get_Url(self, obj):
+        try:
+            return obj.ejercicio.animacion.imagen.url
+        except:
+            return None
+
+    class Meta:
+        model = CrearRutina
+        fields = [
+            'Ejercicio',
+            'Descripcion',
+            'NivelEsfuerzo',
+            'Series',
+            'Repeticiones',
+            'TiempoAprox',
+            'AnimacionId',
+            'Url'
+        ]
     
 class HistorialRutinaSerializer(serializers.ModelSerializer):
     class Meta:

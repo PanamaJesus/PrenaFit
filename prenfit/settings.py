@@ -12,6 +12,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from decouple import config
+print(">> DB_NAME:", repr(config('DB_NAME')))
+print(">> DB_USER:", repr(config('DB_USER')))
+print(">> DB_PASSWORD:", repr(config('DB_PASSWORD')))
+print(">> DB_HOST:", repr(config('DB_HOST')))
+print(">> DB_PORT:", repr(config('DB_PORT')))
+
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,7 +28,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_1#re=#!_4zc$bn7*-3#8yv$+g0m)8h9opuus9ncbnd_nz5-ae'
+# SECRET_KEY = 'django-insecure-_1#re=#!_4zc$bn7*-3#8yv$+g0m)8h9opuus9ncbnd_nz5-ae'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -78,6 +86,11 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+#RutasDeImagenes
+import os
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 TEMPLATES = [
     {
@@ -100,14 +113,6 @@ WSGI_APPLICATION = 'prenfit.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Leer archivo .env
-
-
-# DEBUG = config('DEBUG', default=False, cast=bool)
-SECRET_KEY = config('SECRET_KEY')
-
-# Convertir DEBUG a booleano
-# DEBUG = DEBUG.lower() == "true"
 
 DATABASES = {
     'default': {
@@ -116,7 +121,7 @@ DATABASES = {
         'USER': config('DB_USER'),
         'PASSWORD': config('DB_PASSWORD'),
         'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT', cast=int),
+        'PORT': config('DB_PORT'),
     }
 }
 
