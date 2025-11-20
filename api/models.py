@@ -23,6 +23,7 @@ class Usuario(models.Model):
     codigo_vinculacion = models.CharField(max_length=10, null=True, blank=True)
     estado = models.BooleanField(default=False)
     contrasena = models.CharField(max_length=128, null=True)
+    imagen_perfil = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = 'usuario'
@@ -65,6 +66,7 @@ class Lectura(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     lectura_bpm = models.SmallIntegerField()
     lectura_ox = models.DecimalField(max_digits=5, decimal_places=2)
+    temperatura = models.DecimalField(max_digits=5, decimal_places=2)
     tipo = models.ForeignKey(TipoLectura, on_delete=models.SET_NULL, null=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
 
@@ -100,13 +102,11 @@ class Alerta(models.Model):
         return f"Alerta {self.id} - {self.tipo}"
 
 
-class Animacion(models.Model):
-    nombre_ejercicio = models.CharField(max_length=50)
-    url_anima = models.TextField()
-    descripcion = models.TextField(null=True, blank=True)
+class Imagen(models.Model):
+    url = models.ImageField(upload_to='iconos_perfil/')  
 
     class Meta:
-        db_table = 'animacion'
+        db_table = 'imagenes'
 
     def _str_(self):
         return self.nombre_ejercicio
@@ -115,7 +115,7 @@ class Animacion(models.Model):
 class Ejercicio(models.Model):
     nombre = models.CharField(max_length=50)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
-    animacion = models.ForeignKey(Animacion, on_delete=models.SET_NULL, null=True)
+    animacion = models.ForeignKey(Imagen, on_delete=models.SET_NULL, null=True)
     descripcion = models.TextField(null=True, blank=True)
     nivel_esfuerzo = models.SmallIntegerField()
     sug_semanas = models.SmallIntegerField()
@@ -132,6 +132,7 @@ class Rutina(models.Model):
     nombre = models.CharField(max_length=50)
     descripcion = models.TextField(null=True, blank=True)
     sug_semanas_em = models.SmallIntegerField()
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
 
     class Meta:
         db_table = 'rutina'

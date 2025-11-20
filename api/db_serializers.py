@@ -28,6 +28,8 @@ class LecturaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lectura
         fields = '__all__'
+    
+    
 
 class TipoAlertaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,9 +41,9 @@ class AlertaSerializer(serializers.ModelSerializer):
         model = Alerta
         fields = '__all__'
 
-class AnimacionSerializer(serializers.ModelSerializer):
+class ImagenesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Animacion
+        model = Imagen
         fields = '__all__'
 
 class EjercicioSerializer(serializers.ModelSerializer):
@@ -62,6 +64,25 @@ class RutinaEjercicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = CrearRutina
         fields = '__all__'
+
+class CrearRutinaWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CrearRutina
+        fields = ['series', 'repeticiones', 'tiempo_seg', 'ejercicio']
+
+class RutinaWriteSerializer(serializers.ModelSerializer):
+    ejercicios = CrearRutinaWriteSerializer(many=True)  # ahora writeable
+
+    class Meta:
+        model = Rutina
+        fields = ['nombre', 'descripcion', 'sug_semanas_em', 'usuario', 'ejercicios']
+
+    def create(self, validated_data):
+        ejercicios_data = validated_data.pop('ejercicios', [])
+        rutina = Rutina.objects.create(**validated_data)
+        for ej in ejercicios_data:
+            CrearRutina.objects.create(rutina=rutina, **ej)
+        return rutina
 
 class ResenaSerializer(serializers.ModelSerializer):
     class Meta:
