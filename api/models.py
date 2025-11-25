@@ -24,6 +24,7 @@ class Usuario(models.Model):
     estado = models.BooleanField(default=False)
     contrasena = models.CharField(max_length=128, null=True)
     imagen_perfil = models.TextField(null=True, blank=True)
+    fecha_nacimiento = models.DateField(null=True, blank=True)
 
     class Meta:
         db_table = 'usuario'
@@ -109,7 +110,7 @@ class Imagen(models.Model):
         db_table = 'imagenes'
 
     def __str__(self):
-        return self.nombre_ejercicio
+        return self.url.url if self.url else ""
 
 
 

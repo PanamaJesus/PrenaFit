@@ -205,7 +205,7 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
 
     def get_Url(self, obj):
         try:
-            return obj.ejercicio.animacion.imagen.url
+            return obj.ejercicio.animacion.url.url
         except:
             return None
 
