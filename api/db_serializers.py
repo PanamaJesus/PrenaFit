@@ -83,7 +83,6 @@ class RutinaWriteSerializer(serializers.ModelSerializer):
         for ej in ejercicios_data:
             CrearRutina.objects.create(rutina=rutina, **ej)
         return rutina
-
 class ResenaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resena
@@ -146,14 +145,57 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
             'resenas'
         ]
 
+# class RegisterSerializer(serializers.ModelSerializer):
+#     imagen_perfil = serializers.PrimaryKeyRelatedField(
+#         queryset=Imagen.objects.all(),
+#         required=False,
+#         allow_null=True
+#     )
+
+#     fecha_nacimiento = serializers.DateField(
+#         required=False,
+#         allow_null=True
+#     )
+#     class Meta:
+#         model = Usuario
+#         fields = ['id', 'nombre', 'ap_pat', 'ap_mat', 'correo', 'contrasena',
+#                 'rol', 'semana_embarazo', 'estado', 'imagen_perfil', 'fecha_nacimiento']
+#         extra_kwargs = {'contrasena': {'write_only': True}}
+
+#     def create(self, validated_data):
+#         validated_data['contrasena'] = make_password(validated_data['contrasena'])
+#         return Usuario.objects.create(**validated_data)
 class RegisterSerializer(serializers.ModelSerializer):
+
+    imagen_perfil = serializers.PrimaryKeyRelatedField(
+        queryset=Imagen.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
+    fecha_nacimiento = serializers.DateField(
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre', 'ap_pat', 'ap_mat', 'correo', 'contrasena', 'rol']
-        extra_kwargs = {'contrasena': {'write_only': True}}
+        fields = [
+            'id', 'nombre', 'ap_pat', 'ap_mat', 'correo', 'contrasena',
+            'rol', 'semana_embarazo', 'estado',
+            'imagen_perfil', 'fecha_nacimiento'
+        ]
+        extra_kwargs = {
+            'contrasena': {'write_only': True}
+        }
 
     def create(self, validated_data):
+
         validated_data['contrasena'] = make_password(validated_data['contrasena'])
+
+        # DEBUG → VER QUÉ ESTÁ RECIBIENDO
+        print("🔥 validated_data:", validated_data)
+
         return Usuario.objects.create(**validated_data)
 
 

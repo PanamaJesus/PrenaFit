@@ -12,6 +12,41 @@ class RolUsuario(models.Model):
     def _str_(self):
         return self.rol
 
+# class Imagen(models.Model):
+#     url = models.ImageField(upload_to='iconos_perfil/')  
+#     proposito = models.CharField(max_length=100, null=True, blank=True)
+#     class Meta:
+#         db_table = 'imagenes'
+
+#     def __str__(self):
+#         return self.url.url if self.url else "
+def ruta_por_proposito(instance, filename):
+    proposito = (instance.proposito or "").lower()
+
+    if proposito == "perfil":
+        carpeta = "iconos_perfil"
+    elif proposito == "rutina":
+        carpeta = "iconos_rutinas"
+    elif proposito == "ejercicio":
+        carpeta = "ejercicios"
+    else:
+        carpeta = "otros"
+
+    return f"{carpeta}/{filename}"
+
+
+class Imagen(models.Model):
+    url = models.ImageField(upload_to=ruta_por_proposito)
+    proposito = models.CharField(max_length=100, null=True, blank=True)
+
+
+    class Meta:
+        db_table = 'imagenes'
+
+    def __str__(self):
+        return self.url.url if self.url else ""
+
+
 
 class Usuario(models.Model):
     nombre = models.CharField(max_length=50)
@@ -23,7 +58,8 @@ class Usuario(models.Model):
     codigo_vinculacion = models.CharField(max_length=10, null=True, blank=True)
     estado = models.BooleanField(default=False)
     contrasena = models.CharField(max_length=128, null=True)
-    imagen_perfil = models.TextField(null=True, blank=True)
+    imagen_perfil = models.ForeignKey(Imagen, on_delete=models.SET_NULL, null=True,blank=True
+    )
     fecha_nacimiento = models.DateField(null=True, blank=True)
 
     class Meta:
@@ -102,18 +138,6 @@ class Alerta(models.Model):
     def _str_(self):
         return f"Alerta {self.id} - {self.tipo}"
 
-
-class Imagen(models.Model):
-    url = models.ImageField(upload_to='iconos_perfil/')  
-
-    class Meta:
-        db_table = 'imagenes'
-
-    def __str__(self):
-        return self.url.url if self.url else ""
-
-
-
 class Ejercicio(models.Model):
     nombre = models.CharField(max_length=50)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
@@ -135,6 +159,7 @@ class Rutina(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     sug_semanas_em = models.SmallIntegerField()
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    icono_id = models.ForeignKey(Imagen, on_delete=models.SET_NULL,null=True, blank=True)
 
     class Meta:
         db_table = 'rutina'
