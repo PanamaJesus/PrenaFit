@@ -214,7 +214,66 @@ class LoginSerializer(serializers.Serializer):
 
         return user
 
+##########################################################################
+from rest_framework.views import APIView
+import random
+from rest_framework.response import Response
+
 ##############################################################################################################
+class LecturasDeUnUsuarioSerializer(serializers.ModelSerializer): 
+    NombreUsuario = serializers.CharField(source='usuario.nombre', read_only=True)
+    SemanasEmb = serializers.IntegerField(source='usuario.semana_embarazo', read_only=True)
+    FechaNacimiento = serializers.DateField(source='usuario.fecha_nacimiento', read_only=True)
+    lecturabpm = serializers.IntegerField(source='lectura_bpm', read_only=True)
+    lecturaox = serializers.DecimalField(
+        source='lectura_ox',
+        read_only=True,
+        max_digits=5,
+        decimal_places=2
+    )
+    Temperatura = serializers.DecimalField(
+        source='temperatura',
+        read_only=True,
+        max_digits=5,
+        decimal_places=2
+    )
+    class Meta:
+        model = Lectura
+        fields = [
+            'NombreUsuario',
+            'SemanasEmb',
+            'FechaNacimiento',
+            'lecturabpm',
+            'lecturaox',
+            'Temperatura'
+        ]
+
+class RangosDeUnUsuarioSerializer(serializers.ModelSerializer): 
+    NombreUsuario = serializers.CharField(source='usuario.nombre', read_only=True)
+    LatidosInferiores = serializers.IntegerField(source='rbpm_inferior', read_only=True)
+    LatidosSuperiores = serializers.IntegerField(source='rbpm_superior', read_only=True)
+    OxigenoInferior = serializers.DecimalField(
+        source='rox_inferior',
+        read_only=True,
+        max_digits=5,
+        decimal_places=2
+    )
+    OxigenoSuperior = serializers.DecimalField(
+        source='rox_superior',
+        read_only=True,
+        max_digits=5,
+        decimal_places=2
+    )
+    class Meta:
+        model = Rangos
+        fields = [
+            'NombreUsuario',
+            'LatidosInferiores',
+            'LatidosSuperiores',
+            'OxigenoInferior',
+            'OxigenoSuperior'
+        ]
+
 class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer): 
     NombreRutina = serializers.CharField(source='rutina.nombre', read_only=True)
     Descripcion = serializers.CharField(source='rutina.descripcion', read_only=True)
@@ -242,14 +301,16 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
     Repeticiones = serializers.IntegerField(source='repeticiones', read_only=True)
     TiempoAprox = serializers.IntegerField(source='tiempo_seg', read_only=True)
     AnimacionId = serializers.IntegerField(source='ejercicio.animacion_id', read_only=True)
-
     Url = serializers.SerializerMethodField()
-
+    
     def get_Url(self, obj):
-        try:
-            return obj.ejercicio.animacion.url.url
-        except:
-            return None
+        anim = obj.ejercicio.animacion
+        if anim and hasattr(anim, "url"):
+            try:
+                return anim.url.url
+            except:
+                return None
+        return None
 
     class Meta:
         model = CrearRutina

@@ -159,7 +159,7 @@ class Rutina(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     sug_semanas_em = models.SmallIntegerField()
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
-    icono_id = models.ForeignKey(Imagen, on_delete=models.SET_NULL,null=True, blank=True)
+    icono = models.ForeignKey(Imagen, on_delete=models.SET_NULL,null=True, blank=True)
 
     class Meta:
         db_table = 'rutina'

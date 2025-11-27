@@ -16,6 +16,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.db import transaction
 from django.db.models import Avg
 from django.db.models.functions import ExtractMonth
+from datetime import date
+from rest_framework.decorators import api_view
 
 class RolUsuarioViewSet(viewsets.ModelViewSet):
     queryset = RolUsuario.objects.all()
@@ -720,7 +722,27 @@ class LoginView(APIView):
             'refresh': str(refresh),
             'usuario': user_data
         }, status=status.HTTP_200_OK)
+##########################################################################
+class RangosDeUnUsuarioView(APIView):
+    def get(self, request, usuario_id=None):
+        if usuario_id:
+            registros =Rangos.objects.filter(usuario_id=usuario_id)
+        else:
+            registros = Rangos.objects.all()
 
+        serializer =  RangosDeUnUsuarioSerializer(registros, many=True)
+        return Response(serializer.data)
+
+class LecturasDeUnUsuarioView(APIView):
+    def get(self, request, usuario_id=None):
+        if usuario_id:
+            registros =Lectura.objects.filter(usuario_id=usuario_id)
+        else:
+            registros = Lectura.objects.all()
+
+        serializer = LecturasDeUnUsuarioSerializer(registros, many=True)
+        return Response(serializer.data)
+        
 class RutinasGuardadasUsuarioView(APIView):
     def get(self, request, usuario_id=None):
         if usuario_id:
@@ -730,8 +752,6 @@ class RutinasGuardadasUsuarioView(APIView):
 
         serializer = RutinasGuardadasUsuarioSerializer(registros, many=True)
         return Response(serializer.data)
-    
-    
     
 class RutinaDetalleAPI(APIView):
     def get(self, request, rutina_id):
@@ -744,7 +764,6 @@ class RutinaDetalleAPI(APIView):
 
         return Response(serializer.data)
 
-    
 class CrearHistorialRutinaAPI(APIView):
     def post(self, request):
         serializer = HistorialRutinaSerializer(data=request.data)
@@ -754,6 +773,127 @@ class CrearHistorialRutinaAPI(APIView):
             return Response(serializer.data, status=201)
 
         return Response(serializer.errors, status=400)
+
+class CrearLecturaUsuarioAPI(APIView):
+    def post(self, request):
+        serializer = LecturaSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+
+        return Response(serializer.errors, status=400)
+    
+#Simulador#
+
+
+def calcular_edad(fecha_nac):
+    hoy = date.today()
+    return hoy.year - fecha_nac.year - (
+        (hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day)
+    )
+
+
+@api_view(["GET"])
+def simular_lectura(request, usuario_id, accion):
+    mapa_acciones = {
+        "1": "bajo",
+        "2": "medio",
+        "3": "alto",
+        "4": "normal"
+    }
+    accion = str(accion)
+    if accion not in mapa_acciones:
+        return Response({"error": "Acción inválida (usa 1,2,3,4)"}, status=400)
+    accion = mapa_acciones[accion]
+    # 1. Usuario
+    try:
+        user = Usuario.objects.get(id=usuario_id)
+    except Usuario.DoesNotExist:
+        return Response({"error": "Usuario no encontrado"}, status=404)
+
+    # 2. Rangos del usuario
+    try:
+        rangos = Rangos.objects.get(usuario=user)
+    except Rangos.DoesNotExist:
+        return Response({"error": "Rangos no registrados para el usuario"}, status=404)
+
+    # 3. Última lectura
+    try:
+        ultima = Lectura.objects.filter(usuario=user).latest("id")
+    except Lectura.DoesNotExist:
+        return Response({"error": "No existe ninguna lectura previa"}, status=404)
+
+    edad = calcular_edad(user.fecha_nacimiento)
+
+    # 4. Rangos base
+    lat_min = rangos.rbpm_inferior
+    lat_max = rangos.rbpm_superior
+    ox_min = float(rangos.rox_inferior)
+    ox_max = float(rangos.rox_superior)
+    temp_base = 36.6
+
+    # 5. Ajustes por edad
+    if edad < 25:
+        lat_min += 1
+        lat_max += 2
+    elif edad > 35:
+        lat_min -= 1
+        lat_max -= 1
+
+    # 6. Configuración según acción
+    acciones = {
+        "normal": {
+            "extra_bpm": (0, 2),
+            "delta_bpm": (-2, 2),
+            "ox": (-0.1, 0.1),
+            "temp": (-0.03, 0.03),
+        },
+        "bajo": {
+            "extra_bpm": (5, 12),
+            "delta_bpm": (3, 5),
+            "ox": (-0.5, -0.2),
+            "temp": (0.05, 0.10),
+        },
+        "medio": {
+            "extra_bpm": (15, 25),
+            "delta_bpm": (4, 8),
+            "ox": (-1.0, -0.4),
+            "temp": (0.10, 0.20),
+        },
+        "alto": {
+            "extra_bpm": (30, 45),
+            "delta_bpm": (6, 10),
+            "ox": (-2.0, -0.8),
+            "temp": (0.20, 0.35),
+        }
+    }
+
+    cfg = acciones[accion]
+
+    # 7. Generación simulada
+    extra_bpm = random.randint(*cfg["extra_bpm"])
+    delta_bpm = random.randint(*cfg["delta_bpm"])
+
+    nuevo_bpm = ultima.lectura_bpm + extra_bpm + delta_bpm
+    nuevo_bpm = max(lat_min, min(lat_max, nuevo_bpm))
+
+    ox_drop = random.uniform(*cfg["ox"])
+    nuevo_ox = float(ultima.lectura_ox) + ox_drop
+    nuevo_ox = round(max(ox_min, min(ox_max, nuevo_ox)), 2)
+
+    temp_inc = random.uniform(*cfg["temp"])
+    nueva_temp = round(float(ultima.temperatura) + temp_inc, 2)
+
+    # 8. Respuesta final
+    data = {
+        "usuario": user.id,
+        "latido": nuevo_bpm,
+        "oxigeno": nuevo_ox,
+        "temperatura": nueva_temp,
+    }
+
+    return Response(data)
 
 
 

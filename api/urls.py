@@ -28,10 +28,17 @@ urlpatterns = [
     path('', include(router.urls)), 
     path('register/', RegisterView.as_view(), name='register'), 
     path('login/', LoginView.as_view(), name='login'), 
+
+
     path('rutinas_guardadas/', RutinasGuardadasUsuarioView.as_view()),
     path('rutinas_guardadas/<int:usuario_id>/', RutinasGuardadasUsuarioView.as_view()),
     path("rutina_detalle/<int:rutina_id>/", RutinaDetalleAPI.as_view()),
     path("historial_rutina/", CrearHistorialRutinaAPI.as_view(), name="crear_historial"),
+    path('rangos_usuario/<int:usuario_id>/', RangosDeUnUsuarioView.as_view()),
+    path('lecturas_usuario/<int:usuario_id>/',  LecturasDeUnUsuarioView.as_view()),
+    path("lecturasnuevas/", CrearLecturaUsuarioAPI.as_view(), name="lecturasnuevas"),
+    path("simulador/<int:usuario_id>/<int:accion>/", simular_lectura),
+
 ]
 
 
