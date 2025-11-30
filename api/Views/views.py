@@ -831,16 +831,12 @@ def simular_lectura(request, usuario_id, accion):
         return Response({"error": "Acción inválida (usa 1,2,3,4)"}, status=400)
 
     accion = mapa_acciones[accion]
-
-    # =============== OBTENER USUARIO ==================
     try:
         user = Usuario.objects.get(id=usuario_id)
     except Usuario.DoesNotExist:
         return Response({"error": "Usuario no encontrado"}, status=404)
 
-    # ==========================================
-    #   GENERACIÓN REALISTA DE LECTURAS FISIOLÓGICAS
-    # ==========================================
+    #   Rangos de las lecturas en base a la accion
     acciones_cfg = {
         "normal": {
             "bpm": (80, 90),
@@ -870,10 +866,7 @@ def simular_lectura(request, usuario_id, accion):
     nuevo_ox = round(random.uniform(cfg["ox"][0], cfg["ox"][1]), 2)
     nueva_temp = round(random.uniform(cfg["temp"][0], cfg["temp"][1]), 2)
 
-    # ==========================
     # GUARDAR LECTURA EN BD
-    # ==========================
-
     data = {
         "usuario": user.id,
         "lectura_bpm": nuevo_bpm,
@@ -888,9 +881,7 @@ def simular_lectura(request, usuario_id, accion):
 
     lectura = serializer.save()  # guardar lectura
 
-    # ===============================
     #   VALIDAR RANGOS Y GENERAR ALERTAS
-    # ===============================
     try:
         rangos = Rangos.objects.get(usuario=user)
     except Rangos.DoesNotExist:
@@ -921,12 +912,6 @@ def simular_lectura(request, usuario_id, accion):
             )
             alertas_generadas.append("ox")
 
-        # ------------------ TEMPERATURA ------------------
-        # puedes agregar rangos si los agregas al modelo
-
-    # ===============================
-    # RESPUESTA FINAL
-    # ===============================
     return Response(LecturaSerializer(lectura).data, status=status.HTTP_201_CREATED)
 
 #################################################################################################################

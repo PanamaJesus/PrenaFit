@@ -38,6 +38,7 @@ urlpatterns = [
     path('lecturas_usuario/<int:usuario_id>/',  LecturasDeUnUsuarioView.as_view()),
     path('ultima_lectura_usuario/<int:usuario_id>/', UltimaLecturaDeUsuarioView.as_view()),
     path("lecturasnuevas/", CrearLecturaUsuarioAPI.as_view(), name="lecturasnuevas"),
+    #primero el id del usuario y el numero de accion, va de 1 al 4, en su view se ve cual es cual, no hay relacion con alguna tabla 
     path("simulador/<int:usuario_id>/<int:accion>/", simular_lectura),
 
 ]
