@@ -220,6 +220,7 @@ import random
 from rest_framework.response import Response
 
 ##############################################################################################################
+#Select de lecturas de un usuario
 class LecturasDeUnUsuarioSerializer(serializers.ModelSerializer): 
     NombreUsuario = serializers.CharField(source='usuario.nombre', read_only=True)
     SemanasEmb = serializers.IntegerField(source='usuario.semana_embarazo', read_only=True)
@@ -247,7 +248,7 @@ class LecturasDeUnUsuarioSerializer(serializers.ModelSerializer):
             'lecturaox',
             'Temperatura'
         ]
-
+#select de los rangos de un usuario
 class RangosDeUnUsuarioSerializer(serializers.ModelSerializer): 
     NombreUsuario = serializers.CharField(source='usuario.nombre', read_only=True)
     LatidosInferiores = serializers.IntegerField(source='rbpm_inferior', read_only=True)
@@ -273,14 +274,13 @@ class RangosDeUnUsuarioSerializer(serializers.ModelSerializer):
             'OxigenoInferior',
             'OxigenoSuperior'
         ]
-
+#Las rutinas de un usuario
 class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer): 
     NombreRutina = serializers.CharField(source='rutina.nombre', read_only=True)
     Descripcion = serializers.CharField(source='rutina.descripcion', read_only=True)
     SugSemanas = serializers.IntegerField(source='rutina.sug_semanas_em', read_only=True)
     RutinaId = serializers.IntegerField(source='rutina.id', read_only=True)
     Usuario = serializers.IntegerField(source='usuario.id', read_only=True)
-
     class Meta:
         model = RutinasGuardados
         fields = [
@@ -292,7 +292,7 @@ class RutinasGuardadasUsuarioSerializer(serializers.ModelSerializer):
             'Descripcion',
             'SugSemanas'
         ]
-
+#Ejercicios de una rutina vinculada a un uusario
 class EjercicioDetalleSerializer(serializers.ModelSerializer):
     Ejercicio = serializers.CharField(source='ejercicio.nombre', read_only=True)
     Descripcion = serializers.CharField(source='ejercicio.descripcion', read_only=True)
@@ -302,7 +302,6 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
     TiempoAprox = serializers.IntegerField(source='tiempo_seg', read_only=True)
     AnimacionId = serializers.IntegerField(source='ejercicio.animacion_id', read_only=True)
     Url = serializers.SerializerMethodField()
-    
     def get_Url(self, obj):
         anim = obj.ejercicio.animacion
         if anim and hasattr(anim, "url"):
@@ -311,7 +310,6 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
             except:
                 return None
         return None
-
     class Meta:
         model = CrearRutina
         fields = [
@@ -324,7 +322,7 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
             'AnimacionId',
             'Url'
         ]
-    
+#post para agregar una rutina al historial de rutinas    
 class HistorialRutinaSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistorialRutina

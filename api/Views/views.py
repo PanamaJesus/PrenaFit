@@ -723,6 +723,7 @@ class LoginView(APIView):
             'usuario': user_data
         }, status=status.HTTP_200_OK)
 ##########################################################################
+# vista del select de los rangos de un usuario
 class RangosDeUnUsuarioView(APIView):
     def get(self, request, usuario_id=None):
         if usuario_id:
@@ -732,7 +733,7 @@ class RangosDeUnUsuarioView(APIView):
 
         serializer =  RangosDeUnUsuarioSerializer(registros, many=True)
         return Response(serializer.data)
-
+# vista del select de las lecturas de un usuario
 class LecturasDeUnUsuarioView(APIView):
     def get(self, request, usuario_id=None):
         if usuario_id:
@@ -742,7 +743,20 @@ class LecturasDeUnUsuarioView(APIView):
 
         serializer = LecturasDeUnUsuarioSerializer(registros, many=True)
         return Response(serializer.data)
+# vista del select de la ultima lecturas de un usuario
+class UltimaLecturaDeUsuarioView(APIView):
+    def get(self, request, usuario_id=None):
+        if not usuario_id:
+            return Response({"error": "Debe especificar usuario_id"}, status=400)
         
+        try:
+            ultima_lectura = Lectura.objects.filter(usuario_id=usuario_id).latest("id")
+        except Lectura.DoesNotExist:
+            return Response({"error": "No se encontró ninguna lectura para este usuario"}, status=404)
+        
+        serializer = LecturasDeUnUsuarioSerializer(ultima_lectura)
+        return Response(serializer.data)
+# Vista Rutinas guardadas de un usuario        
 class RutinasGuardadasUsuarioView(APIView):
     def get(self, request, usuario_id=None):
         if usuario_id:
@@ -752,7 +766,7 @@ class RutinasGuardadasUsuarioView(APIView):
 
         serializer = RutinasGuardadasUsuarioSerializer(registros, many=True)
         return Response(serializer.data)
-    
+#vista de los ejercicios de una rutina relacionada a un usuario    
 class RutinaDetalleAPI(APIView):
     def get(self, request, rutina_id):
 
@@ -763,7 +777,7 @@ class RutinaDetalleAPI(APIView):
         serializer = EjercicioDetalleSerializer(ejercicios, many=True)
 
         return Response(serializer.data)
-
+# Vista del post de historial de rutinas
 class CrearHistorialRutinaAPI(APIView):
     def post(self, request):
         serializer = HistorialRutinaSerializer(data=request.data)
@@ -773,7 +787,7 @@ class CrearHistorialRutinaAPI(APIView):
             return Response(serializer.data, status=201)
 
         return Response(serializer.errors, status=400)
-
+# vista del post de lecturas
 class CrearLecturaUsuarioAPI(APIView):
     def post(self, request):
         serializer = LecturaSerializer(data=request.data)
@@ -784,117 +798,135 @@ class CrearLecturaUsuarioAPI(APIView):
 
         return Response(serializer.errors, status=400)
     
-#Simulador#
+# class CrearAlertasUsuarioAPI(APIView):
+#     def post(self, request):
+#         serializer = AlertaSerializer(data=request.data)
+
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=201)
+
+#         return Response(serializer.errors, status=400)
+
 
 
 def calcular_edad(fecha_nac):
     hoy = date.today()
-    return hoy.year - fecha_nac.year - (
-        (hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day)
-    )
+    return hoy.year - fecha_nac.year - ((hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day))
 
 
-@api_view(["GET"])
+@api_view(["POST"])
 def simular_lectura(request, usuario_id, accion):
+
+    # 1-normal / 2-bajo / 3-medio / 4-alto
     mapa_acciones = {
-        "1": "bajo",
-        "2": "medio",
-        "3": "alto",
-        "4": "normal"
+        "1": "normal",
+        "2": "bajo",
+        "3": "medio",
+        "4": "alto"
     }
+
     accion = str(accion)
     if accion not in mapa_acciones:
         return Response({"error": "Acción inválida (usa 1,2,3,4)"}, status=400)
+
     accion = mapa_acciones[accion]
-    # 1. Usuario
+
+    # =============== OBTENER USUARIO ==================
     try:
         user = Usuario.objects.get(id=usuario_id)
     except Usuario.DoesNotExist:
         return Response({"error": "Usuario no encontrado"}, status=404)
 
-    # 2. Rangos del usuario
+    # ==========================================
+    #   GENERACIÓN REALISTA DE LECTURAS FISIOLÓGICAS
+    # ==========================================
+    acciones_cfg = {
+        "normal": {
+            "bpm": (80, 90),
+            "ox": (97.0, 100.0),
+            "temp": (36.3, 36.8)
+        },
+        "bajo": {
+            "bpm": (90, 110),
+            "ox": (96.0, 98.0),
+            "temp": (36.7, 37.1)
+        },
+        "medio": {
+            "bpm": (110, 135),
+            "ox": (95.0, 97.0),
+            "temp": (37.0, 37.4)
+        },
+        "alto": {
+            "bpm": (135, 160),
+            "ox": (93.0, 96.0),
+            "temp": (37.3, 38.0)
+        },
+    }
+
+    cfg = acciones_cfg[accion]
+
+    nuevo_bpm = random.randint(cfg["bpm"][0], cfg["bpm"][1])
+    nuevo_ox = round(random.uniform(cfg["ox"][0], cfg["ox"][1]), 2)
+    nueva_temp = round(random.uniform(cfg["temp"][0], cfg["temp"][1]), 2)
+
+    # ==========================
+    # GUARDAR LECTURA EN BD
+    # ==========================
+
+    data = {
+        "usuario": user.id,
+        "lectura_bpm": nuevo_bpm,
+        "lectura_ox": nuevo_ox,
+        "temperatura": nueva_temp,
+        "tipo": None
+    }
+
+    serializer = LecturaSerializer(data=data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+
+    lectura = serializer.save()  # guardar lectura
+
+    # ===============================
+    #   VALIDAR RANGOS Y GENERAR ALERTAS
+    # ===============================
     try:
         rangos = Rangos.objects.get(usuario=user)
     except Rangos.DoesNotExist:
-        return Response({"error": "Rangos no registrados para el usuario"}, status=404)
+        rangos = None  # si no hay rangos simplemente no hay alertas
 
-    # 3. Última lectura
-    try:
-        ultima = Lectura.objects.filter(usuario=user).latest("id")
-    except Lectura.DoesNotExist:
-        return Response({"error": "No existe ninguna lectura previa"}, status=404)
+    if rangos:
+        alertas_generadas = []
 
-    edad = calcular_edad(user.fecha_nacimiento)
+        # ------------------ BPM ------------------
+        if nuevo_bpm < rangos.rbpm_inferior or nuevo_bpm > rangos.rbpm_superior:
+            tipo = TipoAlerta.objects.filter(tipo="BPM").first()
+            Alerta.objects.create(
+                usuario=user,
+                descripcion=f"Frecuencia cardíaca fuera de rango: {nuevo_bpm} bpm",
+                tipo=tipo,
+                lectura=lectura
+            )
+            alertas_generadas.append("bpm")
 
-    # 4. Rangos base
-    lat_min = rangos.rbpm_inferior
-    lat_max = rangos.rbpm_superior
-    ox_min = float(rangos.rox_inferior)
-    ox_max = float(rangos.rox_superior)
-    temp_base = 36.6
+        # ------------------ SpO2 ------------------
+        if nuevo_ox < float(rangos.rox_inferior) or nuevo_ox > float(rangos.rox_superior):
+            tipo = TipoAlerta.objects.filter(tipo="OX").first()
+            Alerta.objects.create(
+                usuario=user,
+                descripcion=f"Nivel de oxigenación fuera de rango: {nuevo_ox}%",
+                tipo=tipo,
+                lectura=lectura
+            )
+            alertas_generadas.append("ox")
 
-    # 5. Ajustes por edad
-    if edad < 25:
-        lat_min += 1
-        lat_max += 2
-    elif edad > 35:
-        lat_min -= 1
-        lat_max -= 1
+        # ------------------ TEMPERATURA ------------------
+        # puedes agregar rangos si los agregas al modelo
 
-    # 6. Configuración según acción
-    acciones = {
-        "normal": {
-            "extra_bpm": (0, 2),
-            "delta_bpm": (-2, 2),
-            "ox": (-0.1, 0.1),
-            "temp": (-0.03, 0.03),
-        },
-        "bajo": {
-            "extra_bpm": (5, 12),
-            "delta_bpm": (3, 5),
-            "ox": (-0.5, -0.2),
-            "temp": (0.05, 0.10),
-        },
-        "medio": {
-            "extra_bpm": (15, 25),
-            "delta_bpm": (4, 8),
-            "ox": (-1.0, -0.4),
-            "temp": (0.10, 0.20),
-        },
-        "alto": {
-            "extra_bpm": (30, 45),
-            "delta_bpm": (6, 10),
-            "ox": (-2.0, -0.8),
-            "temp": (0.20, 0.35),
-        }
-    }
-
-    cfg = acciones[accion]
-
-    # 7. Generación simulada
-    extra_bpm = random.randint(*cfg["extra_bpm"])
-    delta_bpm = random.randint(*cfg["delta_bpm"])
-
-    nuevo_bpm = ultima.lectura_bpm + extra_bpm + delta_bpm
-    nuevo_bpm = max(lat_min, min(lat_max, nuevo_bpm))
-
-    ox_drop = random.uniform(*cfg["ox"])
-    nuevo_ox = float(ultima.lectura_ox) + ox_drop
-    nuevo_ox = round(max(ox_min, min(ox_max, nuevo_ox)), 2)
-
-    temp_inc = random.uniform(*cfg["temp"])
-    nueva_temp = round(float(ultima.temperatura) + temp_inc, 2)
-
-    # 8. Respuesta final
-    data = {
-        "usuario": user.id,
-        "latido": nuevo_bpm,
-        "oxigeno": nuevo_ox,
-        "temperatura": nueva_temp,
-    }
-
-    return Response(data)
-
-
+    # ===============================
+    # RESPUESTA FINAL
+    # ===============================
+    return Response(LecturaSerializer(lectura).data, status=status.HTTP_201_CREATED)
 
 #################################################################################################################
