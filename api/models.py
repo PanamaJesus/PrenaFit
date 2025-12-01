@@ -146,6 +146,9 @@ class Ejercicio(models.Model):
     nivel_esfuerzo = models.SmallIntegerField()
     sug_semanas = models.SmallIntegerField()
     categoria = models.CharField(max_length=50, null=True)
+    series_default = models.SmallIntegerField(null=True, blank=True)
+    repeticiones_default = models.SmallIntegerField(null=True, blank=True)
+    tiempo_seg_default = models.SmallIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = 'ejercicios'
@@ -160,6 +163,7 @@ class Rutina(models.Model):
     sug_semanas_em = models.SmallIntegerField()
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
     icono = models.ForeignKey(Imagen, on_delete=models.SET_NULL,null=True, blank=True)
+    es_publica = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'rutina'

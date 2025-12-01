@@ -181,6 +181,15 @@ class ImagenViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.errors, status=400)
 
+    @action(detail=False, methods=['post'], url_path='por-proposito')
+    def por_proposito(self, request):
+        proposito = request.data.get('proposito', None)
+        if not proposito:
+            return Response({"error": "Debe proporcionar un parámetro 'proposito'."}, status=400)
+        imagenes = Imagen.objects.filter(proposito=proposito)
+        serializer = self.get_serializer(imagenes, many=True)
+        return Response(serializer.data)
+
 
 
 class EjercicioViewSet(viewsets.ModelViewSet):
@@ -260,6 +269,27 @@ class EjercicioViewSet(viewsets.ModelViewSet):
             "ejercicio": ejercicio_serializer.data,
         }, status=status.HTTP_200_OK)
     
+    @action(detail=False, methods=['get'], url_path='vista_basica')
+    def ejercicios_vista_basica(self, request):
+        """
+        Retorna todos los ejercicios con sus datos
+        y la URL del icono (animación) si existe.
+        """
+        ejercicios = Ejercicio.objects.select_related("animacion").all()
+        respuesta = []
+
+        for e in ejercicios:
+            data = EjercicioSerializer(e).data
+
+            # URL del icono / animación
+            if e.animacion and e.animacion.url:
+                data["icono_url"] = e.animacion.url.url
+            else:
+                data["icono_url"] = None
+
+            respuesta.append(data)
+
+        return Response(respuesta, status=status.HTTP_200_OK)
 
 
 class RutinaViewSet(viewsets.ModelViewSet):
@@ -285,8 +315,8 @@ class RutinaViewSet(viewsets.ModelViewSet):
             # ============================
             #  🔥 URL del icono
             # ============================
-            if rutina.icono_id and rutina.icono_id.url:
-                rutina_data["icono_url"] = rutina.icono_id.url.url
+            if rutina.icono and rutina.icono.url:
+                rutina_data["icono_url"] = rutina.icono.url.url
             else:
                 rutina_data["icono_url"] = None
 
@@ -328,8 +358,6 @@ class RutinaViewSet(viewsets.ModelViewSet):
 
         return Response(respuesta, status=status.HTTP_200_OK)
 
-
-
     @action(detail=False, methods=['post'], url_path='detalle-rutina')
     def detalle_rutina(self, request):
 
@@ -359,8 +387,8 @@ class RutinaViewSet(viewsets.ModelViewSet):
         # ----------------------------
         # ICONO URL
         # ----------------------------
-        if rutina.icono_id and rutina.icono_id.url:
-            rutina_data["icono_url"] = rutina.icono_id.url.url
+        if rutina.icono and rutina.icono.url:
+            rutina_data["icono_url"] = rutina.icono.url.url
         else:
             rutina_data["icono_url"] = None
 
@@ -427,15 +455,410 @@ class RutinaViewSet(viewsets.ModelViewSet):
         # ----------------------------
         return Response(rutina_data, status=status.HTTP_200_OK)
 
-
     @action(detail=False, methods=['post'], url_path='crear-con-ejercicios')
     def crear_con_ejercicios(self, request):
         serializer = RutinaWriteSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Rutina creada correctamente"}, status=status.HTTP_201_CREATED)
+            rutina = serializer.save()
+            return Response({
+                "message": "Rutina creada correctamente",
+                "rutina_id": rutina.id
+            }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'], url_path='buscar-por-nombre')
+    def buscar_por_nombre(self, request):
+        """
+        Busca una rutina por nombre y retorna:
+        - datos básicos de la rutina
+        - lista de ejercicios (con sus datos)
+        - totales (ejercicios y duración)
+        - icono_url
+        - creador
+        - reseñas
+        Recibe: nombre (string)
+        """
+        nombre = request.data.get("nombre")
 
+        if not nombre:
+            return Response({"error": "Falta el campo 'nombre'"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Puedes cambiar __icontains por __iexact si quieres coincidencia exacta
+        rutina = Rutina.objects.filter(nombre__icontains=nombre).first()
+
+        if not rutina:
+            return Response({"error": "No se encontró ninguna rutina con ese nombre"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        rutina_data = RutinaSerializer(rutina).data
+
+        # ----------------------------
+        # ICONO URL (usando el objeto, no el _id)
+        # ----------------------------
+        if rutina.icono and rutina.icono.url:
+            rutina_data["icono_url"] = rutina.icono.url.url
+        else:
+            rutina_data["icono_url"] = None
+
+        # ----------------------------
+        # QUIÉN LA CREÓ
+        # ----------------------------
+        usuario = rutina.usuario
+        es_admin = (
+            usuario.rol and 
+            usuario.rol.rol.lower() == "admin"
+        )
+
+        if es_admin:
+            rutina_data["creado_por"] = "PregnFit"
+        else:
+            rutina_data["creado_por"] = f"{usuario.nombre} {usuario.ap_pat} {usuario.ap_mat}"
+
+        # ----------------------------
+        # EJERCICIOS
+        # ----------------------------
+        crear_items = CrearRutina.objects.filter(rutina=rutina)
+
+        ejercicios_data = []
+        duracion_total = 0
+
+        for item in crear_items:
+            ejercicios_data.append({
+                "id": item.id,
+                "series": item.series,
+                "repeticiones": item.repeticiones,
+                "tiempo_seg": item.tiempo_seg,
+                "ejercicio": EjercicioSerializer(item.ejercicio).data
+            })
+
+            if item.tiempo_seg:
+                duracion_total += item.tiempo_seg
+
+        duracion_minutos = round(duracion_total / 60, 2)
+
+        rutina_data["ejercicios"] = ejercicios_data
+        rutina_data["total_ejercicios"] = len(ejercicios_data)
+        rutina_data["duracion_total_segundos"] = duracion_total
+        rutina_data["duracion_total_minutos"] = duracion_minutos
+
+        # ----------------------------
+        # RESEÑAS
+        # ----------------------------
+        resenas = Retroalimentacion.objects.filter(rutina=rutina).order_by("-fecha")
+
+        rutina_data["reseñas"] = [
+            {
+                "usuario": str(r.usuario),
+                "comentario": r.comentario,
+                "fecha": r.fecha,
+            }
+            for r in resenas
+        ]
+        rutina_data["total_reseñas"] = len(rutina_data["reseñas"])
+
+        # ----------------------------
+        # RESPUESTA FINAL
+        # ----------------------------
+        return Response(rutina_data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='de-usuario')
+    def rutinas_de_usuario(self, request):
+        """
+        Retorna las rutinas:
+        - creadas por un usuario
+        - guardadas por un usuario
+        Recibe: usuario_id (en el body)
+        """
+        usuario_id = request.data.get("usuario_id")
+
+        if not usuario_id:
+            return Response(
+                {"error": "Debe enviar usuario_id en el body."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ------------------------------------
+        # 1) Rutinas creadas por el usuario
+        # ------------------------------------
+        creadas_qs = Rutina.objects.filter(usuario_id=usuario_id)
+        creadas = []
+
+        for rutina in creadas_qs:
+            rutina_data = RutinaSerializer(rutina).data
+
+            # Icono
+            if rutina.icono and rutina.icono.url:
+                rutina_data["icono_url"] = rutina.icono.url.url
+            else:
+                rutina_data["icono_url"] = None
+
+            # Ejercicios + duración
+            crear_items = CrearRutina.objects.filter(rutina=rutina)
+            ejercicios_data = []
+            duracion_total = 0
+
+            for item in crear_items:
+                ejercicios_data.append({
+                    "id": item.id,
+                    "series": item.series,
+                    "repeticiones": item.repeticiones,
+                    "tiempo_seg": item.tiempo_seg,
+                    "ejercicio": EjercicioSerializer(item.ejercicio).data,
+                })
+                if item.tiempo_seg:
+                    duracion_total += item.tiempo_seg
+
+            rutina_data["ejercicios"] = ejercicios_data
+            rutina_data["total_ejercicios"] = len(ejercicios_data)
+            rutina_data["duracion_total_segundos"] = duracion_total
+            rutina_data["duracion_total_minutos"] = round(duracion_total / 60, 2) if duracion_total else 0
+
+            creadas.append(rutina_data)
+
+        # ------------------------------------
+        # 2) Rutinas guardadas por el usuario
+        # ------------------------------------
+        guardadas_qs = RutinasGuardados.objects.filter(usuario_id=usuario_id)
+        guardadas = []
+
+        for item in guardadas_qs:
+            rutina = item.rutina
+            rutina_data = RutinaSerializer(rutina).data
+
+            rutina_data["guardado_id"] = item.id
+            # Icono
+            if rutina.icono and rutina.icono.url:
+                rutina_data["icono_url"] = rutina.icono.url.url
+            else:
+                rutina_data["icono_url"] = None
+
+            # Ejercicios + duración
+            crear_items = CrearRutina.objects.filter(rutina=rutina)
+            ejercicios_data = []
+            duracion_total = 0
+
+            for e in crear_items:
+                ejercicios_data.append({
+                    "id": e.id,
+                    "series": e.series,
+                    "repeticiones": e.repeticiones,
+                    "tiempo_seg": e.tiempo_seg,
+                    "ejercicio": EjercicioSerializer(e.ejercicio).data,
+                })
+                if e.tiempo_seg:
+                    duracion_total += e.tiempo_seg
+
+            rutina_data["ejercicios"] = ejercicios_data
+            rutina_data["total_ejercicios"] = len(ejercicios_data)
+            rutina_data["duracion_total_segundos"] = duracion_total
+            rutina_data["duracion_total_minutos"] = round(duracion_total / 60, 2) if duracion_total else 0
+
+            guardadas.append(rutina_data)
+
+        # ------------------------------------
+        # Respuesta
+        # ------------------------------------
+        return Response(
+            {
+                "creadas": creadas,
+                "guardadas": guardadas,
+            },
+            status=status.HTTP_200_OK
+        )
+    
+    @action(detail=False, methods=['put'], url_path='actualizar-rutina')
+    def actualizar_rutina(self, request):
+        """
+        Actualiza una rutina creada por un usuario.
+        Permite cambiar: nombre, descripcion, icono, es_publica
+        y agregar / eliminar ejercicios.
+
+        Body esperado:
+        {
+            "rutina_id": 23,
+            "usuario_id": 27,
+
+            "nombre": "Nuevo nombre opcional",
+            "descripcion": "Nueva descripción opcional",
+            "icono_id": 9,           # opcional, puede ser null para quitar
+            "es_publica": true,      # opcional
+
+            "ejercicios_eliminar": [60, 61],   # IDs de CrearRutina
+            "ejercicios_agregar": [
+                {
+                    "ejercicio_id": 24,
+                    "series": 15,
+                    "repeticiones": 3,
+                    "tiempo_seg": 30
+                }
+            ]
+        }
+        """
+        rutina_id = request.data.get("rutina_id")
+        usuario_id = request.data.get("usuario_id")
+
+        if not rutina_id or not usuario_id:
+            return Response(
+                {"error": "Debe enviar rutina_id y usuario_id."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Asegurarse de que la rutina pertenezca a ese usuario
+        try:
+            rutina = Rutina.objects.get(id=rutina_id, usuario_id=usuario_id)
+        except Rutina.DoesNotExist:
+            return Response(
+                {"error": "Rutina no encontrada o no pertenece a este usuario."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # -----------------------------
+        # Actualizar campos básicos
+        # -----------------------------
+        nombre = request.data.get("nombre")
+        descripcion = request.data.get("descripcion")
+        icono_id = request.data.get("icono_id")
+        es_publica = request.data.get("es_publica")
+
+        if nombre is not None:
+            rutina.nombre = nombre
+
+        if descripcion is not None:
+            rutina.descripcion = descripcion
+
+        if es_publica is not None:
+            rutina.es_publica = bool(es_publica)
+
+        if icono_id is not None:
+            if icono_id == "" or icono_id is False or icono_id is None:
+                rutina.icono = None
+            else:
+                try:
+                    icono = Imagen.objects.get(id=icono_id)
+                    rutina.icono = icono
+                except Imagen.DoesNotExist:
+                    return Response(
+                        {"error": "El icono_id especificado no existe."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        rutina.save()
+
+        # -----------------------------
+        # Eliminar ejercicios
+        # -----------------------------
+        ejercicios_eliminar = request.data.get("ejercicios_eliminar", [])
+        if isinstance(ejercicios_eliminar, list) and ejercicios_eliminar:
+            CrearRutina.objects.filter(
+                id__in=ejercicios_eliminar,
+                rutina=rutina
+            ).delete()
+
+        # -----------------------------
+        # Agregar ejercicios
+        # -----------------------------
+        ejercicios_agregar = request.data.get("ejercicios_agregar", [])
+        if isinstance(ejercicios_agregar, list):
+            for ej in ejercicios_agregar:
+                ejercicio_id = ej.get("ejercicio_id")
+                series = ej.get("series")
+                repeticiones = ej.get("repeticiones")
+                tiempo_seg = ej.get("tiempo_seg")
+
+                if not ejercicio_id:
+                    continue  # puedes poner validación más estricta si quieres
+
+                CrearRutina.objects.create(
+                    rutina=rutina,
+                    ejercicio_id=ejercicio_id,
+                    series=series or 0,
+                    repeticiones=repeticiones or 0,
+                    tiempo_seg=tiempo_seg or 0,
+                )
+
+        # -----------------------------
+        # Armar respuesta final
+        # -----------------------------
+        rutina_data = RutinaSerializer(rutina).data
+
+        # Icono URL
+        if rutina.icono and rutina.icono.url:
+            rutina_data["icono_url"] = rutina.icono.url.url
+        else:
+            rutina_data["icono_url"] = None
+
+        # Ejercicios actuales de la rutina
+        crear_items = CrearRutina.objects.filter(rutina=rutina)
+        ejercicios_data = []
+        duracion_total = 0
+
+        for item in crear_items:
+            ejercicios_data.append({
+                "id": item.id,
+                "series": item.series,
+                "repeticiones": item.repeticiones,
+                "tiempo_seg": item.tiempo_seg,
+                "ejercicio": EjercicioSerializer(item.ejercicio).data
+            })
+            if item.tiempo_seg:
+                duracion_total += item.tiempo_seg
+
+        rutina_data["ejercicios"] = ejercicios_data
+        rutina_data["total_ejercicios"] = len(ejercicios_data)
+        rutina_data["duracion_total_segundos"] = duracion_total
+        rutina_data["duracion_total_minutos"] = round(duracion_total / 60, 2) if duracion_total else 0
+
+        return Response(rutina_data, status=status.HTTP_200_OK)### Cómo llamarlo
+
+    @action(detail=False, methods=['delete'], url_path='eliminar-rutina')
+    def eliminar_rutina(self, request):
+        """
+        Elimina una rutina creada por un usuario.
+        Solo el usuario que creó la rutina puede eliminarla.
+        Al eliminar la rutina, se eliminan automáticamente:
+        - Los ejercicios asociados (CrearRutina)
+        - Las retroalimentaciones (Retroalimentacion)
+        - Los historiales relacionados (HistorialRutina)
+        
+        Body esperado:
+        {
+            "rutina_id": 23,
+            "usuario_id": 27
+        }
+        """
+        rutina_id = request.data.get("rutina_id")
+        usuario_id = request.data.get("usuario_id")
+
+        if not rutina_id or not usuario_id:
+            return Response(
+                {"error": "Debe enviar rutina_id y usuario_id en el body."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verificar que la rutina existe y pertenece al usuario
+        try:
+            rutina = Rutina.objects.get(id=rutina_id, usuario_id=usuario_id)
+        except Rutina.DoesNotExist:
+            return Response(
+                {"error": "Rutina no encontrada o no pertenece a este usuario."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Guardar el ID antes de eliminar para la respuesta
+        rutina_id_eliminada = rutina.id
+        nombre_rutina = rutina.nombre
+
+        # Eliminar la rutina (Django eliminará automáticamente los registros relacionados en cascada)
+        rutina.delete()
+
+        return Response(
+            {
+                "message": "Rutina eliminada correctamente",
+                "rutina_id": rutina_id_eliminada,
+                "nombre": nombre_rutina
+            },
+            status=status.HTTP_200_OK
+        )
 
 class RutinaEjercicioViewSet(viewsets.ModelViewSet):
     queryset = CrearRutina.objects.all()
@@ -603,6 +1026,7 @@ class rutinasguardadosViewSet(viewsets.ModelViewSet):
 
             rutina_data = RutinaSerializer(rutina).data
 
+            rutina_data["guardado_id"] = item.id
             # Obtener ejercicios con datos
             crear_items = CrearRutina.objects.filter(rutina=rutina)
 
@@ -629,34 +1053,50 @@ class rutinasguardadosViewSet(viewsets.ModelViewSet):
 
         return Response(respuesta, status=status.HTTP_200_OK)
 
-# class RegisterView(APIView):
-#     def post(self, request):
-#         data = request.data
+    @action(detail=False, methods=['delete'], url_path='eliminar-guardada')
+    def eliminar_rutina_guardada(self, request):
+        """
+        Elimina el registro de una rutina guardada por un usuario.
+        Solo elimina el registro de RutinasGuardados, NO la rutina en sí.
+        
+        Body esperado:
+        {
+            "rutina_id": 23,
+            "usuario_id": 27
+        }
+        """
+        rutina_id = request.data.get("rutina_id")
+        usuario_id = request.data.get("usuario_id")
 
-#         # Validar si el correo ya existe
-#         if Usuario.objects.filter(correo=data.get('correo')).exists():
-#             return Response({'error': 'Este correo ya está registrado.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not rutina_id or not usuario_id:
+            return Response(
+                {"error": "Debe enviar rutina_id y usuario_id en el body."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-#         # Crear el objeto sin guardar aún
-#         usuario = Usuario(
-#             nombre=data.get('nombre'),
-#             ap_pat=data.get('ap_pat'),
-#             ap_mat=data.get('ap_mat'),
-#             correo=data.get('correo'),
-#             semana_embarazo=data.get('semana_embarazo'),
-#             rol_id=data.get('rol')
-#         )
+        # Buscar el registro específico
+        try:
+            registro = RutinasGuardados.objects.get(
+                id=rutina_id,
+                usuario=usuario_id
+            )
+        except RutinasGuardados.DoesNotExist:
+            return Response(
+                {"error": "No se encontró la rutina guardada para este usuario."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-#         # 🔥 Hashear la contraseña antes de guardar
-#         usuario.set_password(data.get('contrasena'))
+        # Eliminar solo el registro (no la rutina)
+        registro.delete()
 
-#         # 🔥 Guardar el usuario (ahora sí)
-#         usuario.save()
-
-#         print(">>> Usuario guardado con contraseña hasheada:", usuario.contrasena)
-
-#         serializer = UsuarioSerializer(usuario)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "message": "Rutina eliminada de guardadas correctamente",
+                "rutina_id": rutina_id,
+                "usuario_id": usuario_id
+            },
+            status=status.HTTP_200_OK
+        )
 
 class RegisterView(APIView):
     def post(self, request):
