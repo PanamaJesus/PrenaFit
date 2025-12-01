@@ -208,3 +208,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.pyo
