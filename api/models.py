@@ -233,7 +233,7 @@ class HistorialRutina(models.Model):
     finalizada = models.BooleanField(default=False)
     avg_oxigeno = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     avg_bpm = models.SmallIntegerField(null=True, blank=True)
-    calorias = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    temperatura = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     tiempo = models.IntegerField(null=True, blank=True)
     estado = models.CharField(max_length=50)
 
