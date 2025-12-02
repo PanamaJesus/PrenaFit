@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.hashers import make_password
+from datetime import date, timedelta
 
 
 class RolUsuario(models.Model):
@@ -61,9 +62,38 @@ class Usuario(models.Model):
     imagen_perfil = models.ForeignKey(Imagen, on_delete=models.SET_NULL, null=True,blank=True
     )
     fecha_nacimiento = models.DateField(null=True, blank=True)
+    # ✅ Nuevo campo FIJO para la lógica
+    fecha_inicio_embarazo = models.DateField(
+        null=True, 
+        blank=True,
+        help_text="Fecha estimada de inicio del embarazo (Semana 0 + 0 días)."
+    )
 
     class Meta:
         db_table = 'usuario'
+
+    @property
+    def semana_embarazo_actual(self):
+        """Calcula la semana de embarazo actual en tiempo real."""
+        if not self.fecha_inicio_embarazo:
+            return self.semana_embarazo if self.semana_embarazo is not None else 0
+        # ^ Si la nueva FIE no existe, usa el valor estático viejo como fallback
+        
+        hoy = date.today()
+        dias_transcurridos = (hoy - self.fecha_inicio_embarazo).days
+
+        if dias_transcurridos < 0:
+            return 0 
+
+        semana_actual = dias_transcurridos // 7
+        return semana_actual
+    
+    # 📌 Getter para interceptar llamadas antiguas a 'semana_embarazo'
+    #    Esto NO es un @property. Se llamaría: usuario.semana_actual_calculada
+    
+    def get_semana_calculada(self):
+        """Método que las APIs pueden llamar en lugar del campo directo."""
+        return self.semana_embarazo_actual # Llama a la propiedad calculada
 
     def __str__(self):
         return f"{self.nombre} {self.ap_pat} {self.ap_mat}"

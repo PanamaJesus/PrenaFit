@@ -101,6 +101,15 @@ TEMPLATES = [
     },
 ]
 
+# --- CONFIGURACIÓN DE CORREO ELECTRÓNICO ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com' # Si usas Gmail
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True # Usa TLS para seguridad
+EMAIL_HOST_USER = 'pregnfit@gmail.com' # ⬅️ Tu correo de envío
+EMAIL_HOST_PASSWORD = 'sjlr vblf jrem lzhm' # ⬅️ ¡IMPORTANTE! Genera una contraseña de app (ver nota)
+DEFAULT_FROM_EMAIL = 'pregnfit@gmail.com'
+
 WSGI_APPLICATION = 'prenfit.wsgi.application'
 
 

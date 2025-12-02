@@ -18,6 +18,7 @@ from django.db.models import Avg
 from django.db.models.functions import ExtractMonth
 from datetime import date
 from rest_framework.decorators import api_view
+from api.utils import enviar_alerta_emergencia # ⬅️ Importar la función de envío
 
 class RolUsuarioViewSet(viewsets.ModelViewSet):
     queryset = RolUsuario.objects.all()
@@ -970,7 +971,7 @@ class historialViewSet(viewsets.ModelViewSet):
                 "tiempo": tiempo_str,
                 "finalizada": r.finalizada,
                 "estado": r.estado,
-                "calorias": r.calorias
+                "temperatura": r.temperatura
             })
 
         # Obtener rangos del usuario
@@ -1351,6 +1352,29 @@ def simular_lectura(request, usuario_id, accion):
                 lectura=lectura
             )
             alertas_generadas.append("ox")
+        # 🟢 NUEVA LÓGICA DE ENVÍO DE CORREO 🟢
+        # Si se generó ALGUNA alerta, intentamos enviar el correo.
+        if alertas_generadas:
+            try:
+                # 1. Obtener el objeto de Contacto de Emergencia
+                # Usamos el related_name por defecto (contactoemerg_set) y tomamos el primero.
+                contacto = user.contactoemerg_set.first() 
+                
+                if contacto:
+                    # 2. Enviar el correo
+                    envio_exitoso = enviar_alerta_emergencia(user, contacto)
+                    
+                    if not envio_exitoso:
+                        print(f"ATENCIÓN: FALLÓ EL ENVÍO DE ALERTA por correo para {user.correo}")
+                else:
+                    # Caso en que el usuario no tiene contactos registrados
+                    print(f"ADVERTENCIA: Usuario {user.id} no tiene contactos de emergencia registrados.")
+                    
+            except Exception as e:
+                # Cualquier otro error, como un problema de conexión SMTP
+                print(f"ERROR FATAL DE ENVÍO DE CORREO: {e}")
+                
+    # ------------------ FIN DE ALERTA ------------------
 
     return Response(LecturaSerializer(lectura).data, status=status.HTTP_201_CREATED)
 
