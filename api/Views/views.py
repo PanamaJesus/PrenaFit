@@ -1300,13 +1300,12 @@ def simular_lectura(request, usuario_id, accion):
             "temp": (37.3, 38.0)
         },
     }
-
+    #Genera la lecura
     cfg = acciones_cfg[accion]
-
     nuevo_bpm = random.randint(cfg["bpm"][0], cfg["bpm"][1])
     nuevo_ox = round(random.uniform(cfg["ox"][0], cfg["ox"][1]), 2)
     nueva_temp = round(random.uniform(cfg["temp"][0], cfg["temp"][1]), 2)
-
+    
     # GUARDAR LECTURA EN BD
     data = {
         "usuario": user.id,

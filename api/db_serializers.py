@@ -77,7 +77,7 @@ class CrearRutinaWriteSerializer(serializers.ModelSerializer):
         fields = ['series', 'repeticiones', 'tiempo_seg', 'ejercicio']
 
 class RutinaWriteSerializer(serializers.ModelSerializer):
-    ejercicios = CrearRutinaWriteSerializer(many=True)  # ahora writeable
+    ejercicios = CrearRutinaWriteSerializer(many=True)
 
     class Meta:
         model = Rutina
@@ -86,9 +86,18 @@ class RutinaWriteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         ejercicios_data = validated_data.pop('ejercicios', [])
         rutina = Rutina.objects.create(**validated_data)
+        
         for ej in ejercicios_data:
+            # CORRECCIÓN: Eliminar la clave 'id' si existe
+            if 'id' in ej:
+                del ej['id']
+            
             CrearRutina.objects.create(rutina=rutina, **ej)
+            
         return rutina
+    
+
+
 class ResenaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Resena
