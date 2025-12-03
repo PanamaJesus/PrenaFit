@@ -181,11 +181,10 @@ class EjercicioDetalleSerializer(serializers.ModelSerializer):
 #         validated_data['contrasena'] = make_password(validated_data['contrasena'])
 #         return Usuario.objects.create(**validated_data)
 class RegisterSerializer(serializers.ModelSerializer):
-   # 📌 1. CAMPO DE ENTRADA (INPUT): Solo para recibir el valor en el POST
-    #     ¡IMPORTANTE! Este campo NO debe llamarse 'semana_embarazo' o entrarás en conflicto.
-    semana_inicial_registro = serializers.IntegerField(write_only=True) 
+    # Campo de entrada correcto
+    semana_inicial_registro = serializers.IntegerField(write_only=True)
 
-    # 📌 2. CAMPO DE SALIDA (OUTPUT): Este es el que usa la lógica dinámica
+    # Campo calculado
     semana_embarazo = serializers.SerializerMethodField()
 
     imagen_perfil = serializers.PrimaryKeyRelatedField(
@@ -199,13 +198,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
-    # Campos para Rangos
+    # Campos Rangos
     rbpm_inferior = serializers.IntegerField(required=False, allow_null=True)
     rbpm_superior = serializers.IntegerField(required=False, allow_null=True)
     rox_inferior = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
     rox_superior = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
 
-    # Campos para ContactoEmerg
+    # Contacto emergencia
     contacto_nombre = serializers.CharField(required=False, allow_null=True)
     contacto_ap_pat = serializers.CharField(max_length=50, required=False, allow_null=True)
     contacto_ap_mat = serializers.CharField(max_length=50, required=False, allow_null=True)
@@ -217,52 +216,52 @@ class RegisterSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'ap_pat', 'ap_mat', 'correo', 'contrasena',
             'rol', 'semana_embarazo', 'estado',
             'imagen_perfil', 'fecha_nacimiento',
-            # Campos de rangos
+
+            # Rangos
             'rbpm_inferior', 'rbpm_superior', 'rox_inferior', 'rox_superior',
-            # Campos de contacto de emergencia
+
+            # Contacto emergencia
             'contacto_nombre', 'contacto_ap_pat', 'contacto_ap_mat', 'contacto_correo',
-            'semana_inicial_registro', # <-- Usamos este para el input
-            'semana_embarazo',
+
+            # INPUT correcto
+            'semana_inicial_registro',
         ]
         extra_kwargs = {
             'contrasena': {'write_only': True}
         }
+
     def get_semana_embarazo(self, obj):
-        # Asegúrate de que obj.semana_embarazo_actual esté definido en tu modelo Usuario
         return obj.semana_embarazo_actual
 
     def create(self, validated_data):
         semana_inicial = validated_data.pop('semana_inicial_registro', None)
-        
-        # 1. Calcular la fecha de inicio del embarazo (FIE)
+
         fecha_inicio = None
-        if semana_inicial is not None and semana_inicial > 0:
+        if semana_inicial:
             dias_pasados = semana_inicial * 7
             fecha_inicio = date.today() - timedelta(days=dias_pasados)
-            
-        # 2. Inyectar la FIE en los datos validados
+
         validated_data['fecha_inicio_embarazo'] = fecha_inicio
 
-        # Extraer los campos que no pertenecen al modelo Usuario
+        if semana_inicial is not None:
+            validated_data['semana_embarazo'] = semana_inicial
+
+        # Extra campos
         rbpm_inferior = validated_data.pop('rbpm_inferior', None)
         rbpm_superior = validated_data.pop('rbpm_superior', None)
         rox_inferior = validated_data.pop('rox_inferior', None)
         rox_superior = validated_data.pop('rox_superior', None)
-        
+
         contacto_nombre = validated_data.pop('contacto_nombre', None)
         contacto_ap_pat = validated_data.pop('contacto_ap_pat', None)
         contacto_ap_mat = validated_data.pop('contacto_ap_mat', None)
         contacto_correo = validated_data.pop('contacto_correo', None)
 
-        # Hashear la contraseña
         validated_data['contrasena'] = make_password(validated_data['contrasena'])
 
-        # Crear el usuario
         usuario = Usuario.objects.create(**validated_data)
 
-        # Crear los rangos si se proporcionaron todos los campos necesarios
-        if all([rbpm_inferior is not None, rbpm_superior is not None, 
-                rox_inferior is not None, rox_superior is not None]):
+        if all([rbpm_inferior, rbpm_superior, rox_inferior, rox_superior]):
             Rangos.objects.create(
                 usuario=usuario,
                 rbpm_inferior=rbpm_inferior,
@@ -271,7 +270,6 @@ class RegisterSerializer(serializers.ModelSerializer):
                 rox_superior=rox_superior
             )
 
-        # Crear el contacto de emergencia si se proporcionaron todos los campos necesarios
         if all([contacto_nombre, contacto_ap_pat, contacto_ap_mat, contacto_correo]):
             ContactoEmerg.objects.create(
                 usuario=usuario,
@@ -282,12 +280,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
 
         return usuario
-        
 
-    fecha_nacimiento = serializers.DateField(
-        required=False,
-        allow_null=True
-    )
 
 
     

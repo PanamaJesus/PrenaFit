@@ -1099,6 +1099,67 @@ class rutinasguardadosViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK
         )
 
+    @action(detail=False, methods=['post'], url_path='crear-guardada')
+    def crear_rutina_guardada(self, request):
+        """
+        Guarda una rutina para un usuario si no ha sido guardada previamente.
+        Requiere 'usuario_id' y 'rutina_id' en el cuerpo de la solicitud (request.data).
+        """
+        usuario_id = request.data.get("usuario_id")
+        rutina_id = request.data.get("rutina_id")
+
+        # 1. Validación de datos de entrada
+        if not usuario_id or not rutina_id:
+            return Response(
+                {"error": "Tanto 'usuario_id' como 'rutina_id' son requeridos."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Opcional: Verificar que la rutina exista
+        try:
+            rutina = Rutina.objects.get(pk=rutina_id)
+        except Rutina.DoesNotExist:
+            return Response(
+                {"error": f"La rutina con ID {rutina_id} no existe."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 2. Verificar si la rutina ya ha sido guardada por el usuario
+        # Usa filter().exists() para una consulta eficiente.
+        ya_guardada = RutinasGuardados.objects.filter(
+            usuario_id=usuario_id, 
+            rutina_id=rutina_id
+        ).exists()
+
+        if ya_guardada:
+            return Response(
+                {"mensaje": "Esta rutina ya ha sido guardada por el usuario."},
+                status=status.HTTP_409_CONFLICT  # Código 409: Conflicto
+            )
+
+        # 3. Guardar la rutina
+        try:
+            rutina_guardada = RutinasGuardados.objects.create(
+                usuario_id=usuario_id,
+                rutina=rutina # Usamos el objeto rutina recuperado o rutina_id
+            )
+            
+            # Puedes serializar el objeto guardado para devolver los datos completos
+            serializer = RutinasGuardadosSerializer(rutina_guardada)
+            
+            return Response(
+                {"mensaje": "Rutina guardada exitosamente.", "data": serializer.data},
+                status=status.HTTP_201_CREATED  # Código 201: Creado
+            )
+
+        except Exception as e:
+            # Captura errores en caso de que el usuario_id no sea válido (si no se validó antes)
+            # o cualquier otro error de la base de datos.
+            return Response(
+                {"error": f"Ocurrió un error al guardar la rutina: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
