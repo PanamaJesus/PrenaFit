@@ -41,6 +41,7 @@ urlpatterns = [
     #primero el id del usuario y el numero de accion, va de 1 al 4, en su view se ve cual es cual, no hay relacion con alguna tabla 
     path("simulador/<int:usuario_id>/<int:accion>/", simular_lectura),
 
+    path('recomendacion/lista/<int:usuario_id>/', RutinaRecomendacionListaView.as_view(), name='rutina-recomendacion-lista'),
 ]
 
 

@@ -1439,3 +1439,120 @@ def simular_lectura(request, usuario_id, accion):
     return Response(LecturaSerializer(lectura).data, status=status.HTTP_201_CREATED)
 
 #################################################################################################################
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.db.models import Avg, Sum, Count
+import pandas as pd 
+from datetime import date # <--- ¡IMPORTANTE: Nuevo Import!
+from .utils import get_ml_model_context 
+
+
+class RutinaRecomendacionListaView(APIView):
+    """
+    Retorna una lista de rutinas recomendadas basándose en el cálculo dinámico 
+    de las semanas de embarazo usando 'fecha_inicio_embarazo'.
+    """
+    def get(self, request, usuario_id):
+        # 1. Cargar el modelo y features
+        MODELO_RF, FEATURE_COLUMNS = get_ml_model_context()
+        if not MODELO_RF:
+            return Response({"error": "Modelo de recomendación no cargado en el servidor."}, status=500)
+            
+        try:
+            usuario = Usuario.objects.get(pk=usuario_id)
+            rangos = Rangos.objects.filter(usuario=usuario).first()
+            
+            # Verificaciones críticas
+            if not rangos:
+                return Response({"error": "Rangos del usuario no definidos."}, status=400)
+            if not usuario.fecha_inicio_embarazo: # Usamos el campo confirmado por el usuario
+                 return Response({"error": "La fecha de inicio de embarazo no está definida en el perfil del usuario."}, status=400)
+
+        except Usuario.DoesNotExist:
+            return Response({"error": "Usuario no encontrado."}, status=404)
+
+        # 2. Obtener Rutinas candidatas y Features Agregados
+        rutinas_candidatas_qs = Rutina.objects.filter(es_publica=True)
+        
+        rutinas_con_esfuerzo = rutinas_candidatas_qs.annotate(
+            rutina_esfuerzo_promedio=Avg('crearrutina__ejercicio__nivel_esfuerzo'),
+            total_ejercicios=Count('crearrutina'), 
+            duracion_total_minutos=Sum('crearrutina__tiempo_seg') / 60.0,
+        ).exclude(rutina_esfuerzo_promedio__isnull=True) 
+
+        rutinas_list = list(rutinas_con_esfuerzo)
+
+        # 3. Obtener Historial y Calcular Alerta (Lógica sin cambios)
+        ultimo_historial = HistorialRutina.objects.filter(usuario=usuario).order_by('-fecha').first()
+        alerta_generada = 0
+        historial_data = {}
+        
+        if ultimo_historial and ultimo_historial.avg_bpm and ultimo_historial.avg_oxigeno:
+            alerta_bpm = (ultimo_historial.avg_bpm < rangos.rbpm_inferior) or (ultimo_historial.avg_bpm > rangos.rbpm_superior)
+            alerta_ox = (ultimo_historial.avg_oxigeno < rangos.rox_inferior)
+            alerta_generada = 1 if alerta_bpm or alerta_ox else 0
+            historial_data = {'avg_bpm': ultimo_historial.avg_bpm, 'avg_oxigeno': ultimo_historial.avg_oxigeno}
+        else:
+            historial_data = {'avg_bpm': rangos.rbpm_inferior + 5, 'avg_oxigeno': 98.0}
+
+        # 4. Preparar DataFrame de Predicción
+        datos_prediccion = [] 
+        
+        # 🔥 CÁLCULO DE SEMANAS DE EMBARAZO (LÓGICA NUEVA) 🔥
+        hoy = date.today()
+        # Usamos el campo correcto: fecha_inicio_embarazo
+        fecha_inicio_embarazo = usuario.fecha_inicio_embarazo 
+        
+        # Calcular la diferencia de días
+        dias_embarazo = (hoy - fecha_inicio_embarazo).days
+        
+        # Calcular la semana actual (días / 7). 
+        # Usamos max(1, ...) para asegurar que siempre sea al menos la semana 1.
+        semana_actual = max(1, int(dias_embarazo / 7))
+        # 🔥 FIN DEL CÁLCULO 🔥
+
+        for rutina in rutinas_list:
+            esfuerzo = rutina.rutina_esfuerzo_promedio if rutina.rutina_esfuerzo_promedio is not None else 0 
+
+            fila = {
+                'semana_embarazo': semana_actual, # Alimentamos al ML con el valor calculado
+                'sug_semanas_em': rutina.sug_semanas_em,
+                'rbpm_inferior': rangos.rbpm_inferior,
+                'rbpm_superior': rangos.rbpm_superior,
+                'rox_inferior': rangos.rox_inferior,
+                **historial_data, 
+                'alerta_generada': alerta_generada,
+                'rutina_esfuerzo_promedio': esfuerzo 
+            }
+            datos_prediccion.append(fila)
+
+        if not datos_prediccion:
+             return Response([], status=200)
+
+        df_prediccion = pd.DataFrame(datos_prediccion, columns=FEATURE_COLUMNS)
+
+        # 5. Predicción y Creación de Lista Final
+        scores_predichos = MODELO_RF.predict(df_prediccion)
+        
+        lista_recomendada = []
+        
+        for i, rutina in enumerate(rutinas_list):
+            score = scores_predichos[i]
+            
+            # Filtro de Producción Activado (>= 0.5)
+            if score >= 0.5: 
+                
+                lista_recomendada.append({
+                    'id': rutina.id, 'nombre': rutina.nombre, 'descripcion': rutina.descripcion,
+                    'sug_semanas_em': rutina.sug_semanas_em,
+                    'total_ejercicios': int(getattr(rutina, 'total_ejercicios', 0)), 
+                    'duracion_total_minutos': round(float(getattr(rutina, 'duracion_total_minutos', 0)), 0), 
+                    'creado_por': rutina.usuario.nombre, 
+                    'score_ml': round(score, 3) 
+                })
+
+        # 6. Ordenar por score descendente
+        lista_recomendada.sort(key=lambda x: x['score_ml'], reverse=True)
+        
+        return Response(lista_recomendada, status=200)
+################################################################
