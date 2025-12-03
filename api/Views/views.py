@@ -408,6 +408,7 @@ class RutinaViewSet(viewsets.ModelViewSet):
         else:
             rutina_data["creado_por"] = f"{usuario.nombre} {usuario.ap_pat} {usuario.ap_mat}"
 
+       
         # ----------------------------
         # EJERCICIOS
         # ----------------------------
@@ -417,16 +418,29 @@ class RutinaViewSet(viewsets.ModelViewSet):
         duracion_total = 0
 
         for item in crear_items:
+
+            # URL del icono (animación) del ejercicio
+            if (
+                item.ejercicio and 
+                item.ejercicio.animacion and 
+                item.ejercicio.animacion.url
+            ):
+                icono_ejercicio_url = item.ejercicio.animacion.url.url
+            else:
+                icono_ejercicio_url = None
+
             ejercicios_data.append({
                 "id": item.id,
                 "series": item.series,
                 "repeticiones": item.repeticiones,
                 "tiempo_seg": item.tiempo_seg,
-                "ejercicio": EjercicioSerializer(item.ejercicio).data
+                "ejercicio": EjercicioSerializer(item.ejercicio).data,
+                "icono_url": icono_ejercicio_url
             })
 
             if item.tiempo_seg:
                 duracion_total += item.tiempo_seg
+
 
         duracion_minutos = round(duracion_total / 60, 2)
 
@@ -1205,6 +1219,13 @@ class LoginView(APIView):
         # Generar tokens
         refresh = RefreshToken.for_user(usuario)
 
+        if usuario.imagen_perfil and usuario.imagen_perfil.url:
+            imagen_relativa = usuario.imagen_perfil.url.url  # /media/...
+            imagen_url_completa = request.build_absolute_uri(usuario.imagen_perfil.url.url)
+        else:
+            imagen_relativa = None
+            imagen_url_completa = None
+
         # Serializar datos del usuario
         user_data = {
             'id': usuario.id,
@@ -1216,6 +1237,8 @@ class LoginView(APIView):
             'rol': usuario.rol_id,
             'semana_embarazo': usuario.semana_embarazo,
             # Agrega otros campos que desees incluir
+            'imagen_perfil': imagen_relativa,          # /media/fotos/perfil.jpg
+            'imagen_perfil_url': imagen_url_completa 
         }
 
         return Response({
